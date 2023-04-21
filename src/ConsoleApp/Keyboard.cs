@@ -88,40 +88,13 @@ public partial class Keyboard : IEvolvable<string>
 
 
     enum Thumb {Left, Right}
-    readonly struct InputAction
-    {
-        public readonly Key KeyPressed;
-        public readonly Vector2Int KeyPosition;
-        public readonly SwipeDirection SwipeDirection;
-        public readonly Thumb Thumb;
-        
-        public InputAction(Key keyPressed, int row, int column, SwipeDirection swipeDirection, Thumb thumb)
-        {
-            KeyPressed = keyPressed;
-            SwipeDirection = swipeDirection;
-            Thumb = thumb;
-            KeyPosition = new(column, row);
-        }
-
-        public static bool operator ==(InputAction one, InputAction two)
-        {
-            return !(one != two);
-        }
-
-        public static bool operator !=(InputAction one, InputAction two)
-        {
-            return one.KeyPressed != two.KeyPressed
-                   || one.KeyPosition != two.KeyPosition
-                   || one.SwipeDirection != two.SwipeDirection;
-        }
-    }
 
     Vector2Int SpaceBarPosition => new(_keys.GetLength(1) + 1, _keys.GetLength(0) / 2);
     public void AddStimulus(string text)
     {
         var input = text.AsSpan();
 
-        InputAction previousTypedKey = default;
+        InputAction previousTypedKey = default; // todo: previous key left + right
         foreach (char c in input)
         {
             if (c == ' ')
