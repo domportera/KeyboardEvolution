@@ -1,6 +1,6 @@
-namespace ConsoleApp;
+namespace Core.Util;
 
-static class RandomExtensions
+public static class RandomExtensions
 {
     // courtesy of https://stackoverflow.com/questions/108819/best-way-to-randomize-an-array-with-net
     public static void Shuffle<T> (this Random rng, T[] array)

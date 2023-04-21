@@ -1,7 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
-using ConsoleApp;
+using Core;
 
 Console.WriteLine("Hello, World!");
 
-Keyboard keyboard = new Keyboard(Keyboard.KeyboardType.Standard);
+// ThumbKeyboard keyboard = new ThumbKeyboard(ThumbKeyboard.KeyboardType.Standard);

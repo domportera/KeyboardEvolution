@@ -1,8 +1,8 @@
 using System.Numerics;
 
-namespace ConsoleApp;
+namespace Core.Util;
 
-struct Vector2Int
+public struct Vector2Int
 {
     public int X, Y;
 

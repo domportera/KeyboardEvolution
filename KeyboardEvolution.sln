@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp", "src\ConsoleApp\ConsoleApp.csproj", "{CC4AC50A-BF4A-4F4A-BCB8-825C04EA696D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "src\Core\Core.csproj", "{CC4AC50A-BF4A-4F4A-BCB8-825C04EA696D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThumbKey", "ThumbKey\ThumbKey.csproj", "{2FD9FFD6-2B5A-4E2D-BFDA-C181A28FABA3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +14,9 @@ Global
 		{CC4AC50A-BF4A-4F4A-BCB8-825C04EA696D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CC4AC50A-BF4A-4F4A-BCB8-825C04EA696D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CC4AC50A-BF4A-4F4A-BCB8-825C04EA696D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2FD9FFD6-2B5A-4E2D-BFDA-C181A28FABA3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2FD9FFD6-2B5A-4E2D-BFDA-C181A28FABA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2FD9FFD6-2B5A-4E2D-BFDA-C181A28FABA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2FD9FFD6-2B5A-4E2D-BFDA-C181A28FABA3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
