@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "src\Core\Core.csproj", "{CC4AC50A-BF4A-4F4A-BCB8-825C04EA696D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThumbKey", "ThumbKey\ThumbKey.csproj", "{2FD9FFD6-2B5A-4E2D-BFDA-C181A28FABA3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThumbKey", "src\ThumbKey\ThumbKey.csproj", "{2FD9FFD6-2B5A-4E2D-BFDA-C181A28FABA3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
