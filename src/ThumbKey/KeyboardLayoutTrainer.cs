@@ -24,7 +24,7 @@ public class KeyboardLayoutTrainer : IEvolver<string, KeyboardLayout>
     public KeyboardLayoutTrainer(int width, int height, int seed)
     {
         _random = new Random(seed);
-        _layout = new KeyboardLayout(width, height, CharacterSet, seed);
+      //  _layout = new KeyboardLayout(width, height, CharacterSet, seed);
     }
 
     public static KeyboardLayoutTrainer[] Reproduce (KeyboardLayoutTrainer parent1, KeyboardLayoutTrainer parent2, int quantity)

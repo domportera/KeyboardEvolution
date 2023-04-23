@@ -1,16 +1,28 @@
 using System.Diagnostics;
+using System.Text;
 using Core.Util;
 
 namespace ThumbKey;
 
-class Key
+public class Key
 {
     const int MaxCharacterCount = 9;
     readonly char[] _characters = new char[MaxCharacterCount];
     readonly List<int> _indexesContainingCharacter = new(capacity: MaxCharacterCount);
 
-    public Key(ReadOnlySpan<char> characters, Random random)
+    private Key(Vector2Int dimensions)
     {
+        throw new NotImplementedException();
+        // disallow default construction
+    }
+
+    internal Key(ReadOnlySpan<char> characters, Random random)
+    {
+        double side = Math.Sqrt(MaxCharacterCount);
+        Debug.Assert(side % 1 == 0); // must be square... for now....
+        
+        Dimensions = new((int)side, (int)side);
+        
         RandomlyDistributeCharacters(characters, random);
     }
 
@@ -93,7 +105,12 @@ class Key
         key2._characters[index2] = char1;
     }
 
+   
+    public char[] GetAllCharacters() => _characters.ToArray();
+
     public char this[SwipeDirection direction] => _characters[(int)direction];
     public char this[Vector2Int position] => _characters[position.X + position.X * position.Y + position.Y];
     public char this[int position] => _characters[position];
+    public int Length => _characters.Length;
+    public readonly Vector2Int Dimensions;
 }

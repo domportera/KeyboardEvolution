@@ -1,6 +1,6 @@
 namespace ThumbKey;
 
-internal enum SwipeDirection
+public enum SwipeDirection
 {
     UpLeft = 0,
     Up = 1,

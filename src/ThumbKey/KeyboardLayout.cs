@@ -6,9 +6,9 @@ using Core.Util;
 
 namespace ThumbKey;
 
-partial class KeyboardLayout : IEvolvable<string>
+public partial class KeyboardLayout : IEvolvable<string>
 {
-    readonly Key[,] _keys;
+    public readonly Key[,] Keys;
 
     public Vector2Int Dimensions { get; }
     readonly Random _random;
@@ -34,10 +34,10 @@ partial class KeyboardLayout : IEvolvable<string>
         }
 
         _random.Shuffle(allCharacters);
-        _keys = new Key[height, width];
+        Keys = new Key[height, width];
         Dimensions = new Vector2Int(width, height);
         _maxDistancePossible = Vector2.Distance(Vector2.One, Dimensions);
-        DistributeRandomKeyboardLayout(_keys, allCharacters, _random);
+        DistributeRandomKeyboardLayout(Keys, allCharacters, _random);
     }
 
     #region Weight Definitions
@@ -86,7 +86,7 @@ partial class KeyboardLayout : IEvolvable<string>
 
     Key GetKey(int x, int y)
     {
-        return _keys[y, x];
+        return Keys[y, x];
     }
 
     public Key GetKey(Vector2Int position) => GetKey(position.X, position.Y);
@@ -141,7 +141,7 @@ partial class KeyboardLayout : IEvolvable<string>
             for (var column = 0; column < Dimensions.X; column++)
             for (var row = 0; row < Dimensions.Y; row++)
             {
-                Key key = _keys[row, column];
+                Key key = Keys[row, column];
                 var contains = key.Contains(c, out var foundDirection);
                 if (!contains) continue;
 
