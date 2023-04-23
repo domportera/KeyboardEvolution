@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace ThumbKey;
 
-partial class KeyboardLayout
+public partial class KeyboardLayout
 {
     readonly record struct Weights
     {

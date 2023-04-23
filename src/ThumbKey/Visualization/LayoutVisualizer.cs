@@ -7,7 +7,6 @@ public class LayoutVisualizer
 {
     readonly KeyboardLayout _layoutToVisualize;
     KeyVisualizer[,] _keyVisualizers;
-    readonly string[,] _visualizedKeys;
 
     readonly Vector2Int _layoutDimensions;
     readonly Vector2Int _keyDimensions;
@@ -22,7 +21,6 @@ public class LayoutVisualizer
         _keyDimensions = _layoutToVisualize[(0,0)].Dimensions;
         
         _keyVisualizers = new KeyVisualizer[_layoutDimensions.Y, _layoutDimensions.X];
-        _visualizedKeys = new string[_layoutDimensions.Y, _layoutDimensions.X];
 
         for(int y = 0; y < layoutToVisualize.Dimensions.Y; y++)
         for (int x = 0; x < layoutToVisualize.Dimensions.X; x++)
@@ -43,7 +41,6 @@ public class LayoutVisualizer
         for (int x = 0; x < _layoutDimensions.X; x++)
         {
             _keyVisualizers[y, x].RefreshVisualization();
-            _visualizedKeys[y,x] = _keyVisualizers[y, x].VisualizedKey;
         }
 
         // append keys into larger whole
@@ -52,8 +49,9 @@ public class LayoutVisualizer
         for(int y = 0; y < _layoutDimensions.Y; y++)
         for (int x = 0; x < _layoutDimensions.X; x++)
         {
-            var visualization = _visualizedKeys[y, x];
-            
+            KeyVisualizer keyVisualizer = _keyVisualizers[y, x];
+            string visualizedKey = keyVisualizer.VisualizedKey;
+            string modifiedKey = visualizedKey;
         }
         
         throw new NotImplementedException();
