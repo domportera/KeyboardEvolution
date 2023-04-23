@@ -48,7 +48,8 @@ partial class KeyboardLayout : IEvolvable<string>
         Trajectory = 0.5,
         HandAlternation = 1,
         HandCollisionAvoidance = 0.2,
-        PositionalPreference = 0,
+        PositionalPreference = 0.6,
+        SwipeDirection = 1
     };
 
     const double CardinalPreference = 0.4;
