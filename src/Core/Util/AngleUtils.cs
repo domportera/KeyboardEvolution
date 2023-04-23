@@ -1,6 +1,8 @@
+using System.Numerics;
+
 namespace Core.Util;
 
-public static class AngleComparison
+public static class AngleUtils
 {
     const double TwoPi = 2 * Math.PI;
 
@@ -26,5 +28,15 @@ public static class AngleComparison
 
         // Divide the difference by TWO_PI to get the closeness value between 0 and 1
         return diff / Math.PI;
+    }
+
+    public static double AngleFromVector2(Vector2 vector)
+    {
+        return Math.Atan2(vector.Y, vector.X);
+    }
+    
+    public static double AngleFromVector2(Vector2Int vector)
+    {
+        return Math.Atan2(vector.Y, vector.X);
     }
 }
