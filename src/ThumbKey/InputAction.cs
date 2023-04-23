@@ -4,17 +4,15 @@ namespace ThumbKey;
 
 readonly struct InputAction
 {
-    public readonly Key KeyPressed;
     public readonly Vector2Int KeyPosition;
     public readonly SwipeDirection SwipeDirection;
     public readonly Thumb Thumb;
 
-    public InputAction(Key keyPressed, int row, int column, SwipeDirection swipeDirection, Thumb thumb)
+    public InputAction(int column, int row, SwipeDirection swipeDirection, Thumb thumb)
     {
-        KeyPressed = keyPressed;
         SwipeDirection = swipeDirection;
         Thumb = thumb;
-        KeyPosition = new(column, row);
+        KeyPosition = new Vector2Int(column, row);
     }
 
     public static bool operator ==(InputAction one, InputAction two)
@@ -24,8 +22,7 @@ readonly struct InputAction
 
     public static bool operator !=(InputAction one, InputAction two)
     {
-        return one.KeyPressed != two.KeyPressed
-               || one.KeyPosition != two.KeyPosition
+        return one.KeyPosition != two.KeyPosition
                || one.SwipeDirection != two.SwipeDirection
                || one.Thumb != two.Thumb;
     }

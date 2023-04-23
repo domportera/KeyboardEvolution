@@ -5,9 +5,9 @@ using Core.Util;
 
 namespace ThumbKey;
 
-public class ThumbKeyboard : IEvolver<string, KeyLayout>
+public class ThumbKeyboard : IEvolver<string, KeyboardLayout>
 {
-    KeyLayout _layout; 
+    KeyboardLayout _layout; 
 
     const string Alphabet = "abcdefghijklmnopqrstuvwxyz";
 
@@ -20,23 +20,6 @@ public class ThumbKeyboard : IEvolver<string, KeyLayout>
     static ThumbKeyboard()
     {
         LetterSet = Alphabet.ToImmutableHashSet();
-
-        var dict = new Dictionary<SwipeDirection, double>()
-        {
-            { SwipeDirection.Up, Math.PI / 2 },
-            { SwipeDirection.UpRight, Math.PI / 4 },
-            { SwipeDirection.Right, 0 },
-            { SwipeDirection.DownRight, 7 * Math.PI / 4 },
-            { SwipeDirection.Down, 3 * Math.PI / 2 },
-            { SwipeDirection.DownLeft, 5 * Math.PI / 4 },
-            { SwipeDirection.Left, Math.PI },
-            { SwipeDirection.UpLeft, 3 * Math.PI / 4 },
-        };
-
-        Directions = dict
-            .ToImmutableDictionary(
-                x => x.Key,
-                x => x.Value);
     }
 
     public ThumbKeyboard(int width, int height, int seed)

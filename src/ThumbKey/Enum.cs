@@ -14,8 +14,8 @@ internal enum SwipeDirection
     None = -1
 }
 
-internal enum Thumb // todo: further abstraction : finger type? what of one-handed users?
+internal enum Thumb // todo: further abstraction : hand? finger type? what of one-handed users?
 {
-    Left,
-    Right
+    Left = 0,
+    Right = 1
 }
