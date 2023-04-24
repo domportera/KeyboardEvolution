@@ -15,7 +15,7 @@ public class LayoutVisualizer
     public LayoutVisualizer(KeyboardLayout layoutToVisualize)
     {
         _layoutToVisualize = layoutToVisualize;
-        Key[,] keys = _layoutToVisualize.Keys;
+        Key[,] keys = _layoutToVisualize.Traits;
         
         _layoutDimensions = layoutToVisualize.Dimensions;
         _keyDimensions = _layoutToVisualize[(0,0)].Dimensions;
@@ -35,24 +35,32 @@ public class LayoutVisualizer
     }
 
 
-    public string GetNewVisualization()
+    string GetNewVisualization()
     {
-        for(int y = 0; y < _layoutDimensions.Y; y++)
-        for (int x = 0; x < _layoutDimensions.X; x++)
-        {
-            _keyVisualizers[y, x].RefreshVisualization();
-        }
-
-        // append keys into larger whole
         StringBuilder builder = new();
         
-        for(int y = 0; y < _layoutDimensions.Y; y++)
-        for (int x = 0; x < _layoutDimensions.X; x++)
+        const string separator = "\n------------------------------\n";
+
+        builder.Append(separator);
+        builder.Append("Layout ");
+        builder.Append(_layoutDimensions.ToString());
+
+        for (int y = 0; y < _layoutDimensions.Y; y++)
         {
-            KeyVisualizer keyVisualizer = _keyVisualizers[y, x];
-            string visualizedKey = keyVisualizer.VisualizedKey;
-            string modifiedKey = visualizedKey;
+            builder.Append("Row ");
+            builder.Append(y + 1);
+            builder.Append(separator);
+            
+            for (int x = 0; x < _layoutDimensions.X; x++)
+            {
+                KeyVisualizer keyVisualizer = _keyVisualizers[y, x];
+
+                keyVisualizer.RefreshVisualization();
+                builder.Append(keyVisualizer.VisualizedKey);
+            }
+            builder.Append('\n');
         }
+        
         
         throw new NotImplementedException();
     }

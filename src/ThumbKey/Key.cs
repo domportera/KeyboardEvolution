@@ -6,9 +6,8 @@ namespace ThumbKey;
 
 public class Key
 {
-    const int MaxCharacterCount = 9;
-    readonly char[] _characters = new char[MaxCharacterCount];
-    readonly List<int> _indexesContainingCharacter = new(capacity: MaxCharacterCount);
+    public const int MaxCharacterCount = 9;
+    readonly char[] _characters;
 
     private Key(Vector2Int dimensions)
     {
@@ -18,6 +17,7 @@ public class Key
 
     internal Key(ReadOnlySpan<char> characters, Random random)
     {
+        _characters = new char[MaxCharacterCount];
         double side = Math.Sqrt(MaxCharacterCount);
         Debug.Assert(side % 1 == 0); // must be square... for now....
         
@@ -26,13 +26,18 @@ public class Key
         RandomlyDistributeCharacters(characters, random);
     }
 
-    void PopulateIndexesContainingCharacter()
+    Key(char[] characters)
     {
-        _indexesContainingCharacter.Clear();
+        _characters = characters;
+    }
+
+    public Key Duplicate() => new Key(_characters.ToArray());
+
+    public void OverwriteKeysWith(Key other)
+    {
         for (int i = 0; i < _characters.Length; i++)
         {
-            if (_characters[i] != default)
-                _indexesContainingCharacter.Add(i);
+            _characters[i] = other._characters[i];
         }
     }
 
@@ -40,7 +45,7 @@ public class Key
     {
         Debug.Assert(characters.Length <= _characters.Length);
         Debug.Assert(characters.Length > 0);
-        Clear();
+        
         for (int i = 0; i < characters.Length; i++)
         {
             var character = characters[i];
@@ -48,10 +53,21 @@ public class Key
         }
 
         random.Shuffle(_characters);
-        PopulateIndexesContainingCharacter();
-        EnsureCenterHasCharacter(random, _indexesContainingCharacter);
+        List<int> indexesContainingCharacter = new(MaxCharacterCount);
+        PopulateIndexesContainingCharacter(indexesContainingCharacter, _characters);
+        EnsureCenterHasCharacter(random, indexesContainingCharacter);
 
         Debug.Assert(_characters[(int)SwipeDirection.Center] != default);
+        
+        static void PopulateIndexesContainingCharacter(ICollection<int> indexesContainingCharacter, char[] characters)
+        {
+            indexesContainingCharacter.Clear();
+            for (int i = 0; i < characters.Length; i++)
+            {
+                if (characters[i] != default)
+                    indexesContainingCharacter.Add(i);
+            }
+        }
     }
 
     void EnsureCenterHasCharacter(Random random, IList<int> indexesContainingCharacter)
@@ -65,15 +81,6 @@ public class Key
 
         _characters[centerIndex] = stolenCharacter;
         _characters[charIndexToStealFrom] = default;
-        indexesContainingCharacter[index] = centerIndex;
-    }
-
-    public void Clear()
-    {
-        for (int i = 0; i < _characters.Length; i++)
-            _characters[i] = default;
-        
-        _indexesContainingCharacter.Clear();
     }
 
     internal bool Contains(char c, out SwipeDirection direction)
@@ -85,9 +92,9 @@ public class Key
         return index != -1;
     }
 
-    public static void SwapRandomCharacters(Key key1, Key key2, Random random)
+    internal static void SwapRandomCharacters(Key key1, Key key2, Random random)
     {
-        Debug.Assert(key1._indexesContainingCharacter.Count > 0 && key2._indexesContainingCharacter.Count > 0);
+        Debug.Assert(key1.GetValidCharacterCount() > 0 && key2.GetValidCharacterCount() > 0);
         
         char char1, char2;
         int index1, index2;
@@ -103,6 +110,18 @@ public class Key
 
         key1._characters[index1] = char2;
         key2._characters[index2] = char1;
+    }
+
+    int GetValidCharacterCount()
+    {
+        int count = 0;
+        foreach (var c in _characters)
+        {
+            if (c != default)
+                count++;
+        }
+
+        return count;
     }
 
    

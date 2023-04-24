@@ -1,42 +1,101 @@
+using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Numerics;
 using Core;
 using Core.Util;
 
 namespace ThumbKey;
 
-public class KeyboardLayoutTrainer : IEvolver<string, KeyboardLayout>
+public partial class KeyboardLayoutTrainer : IEvolverAsexual<string, KeyboardLayout, Key[,]>
 {
-    KeyboardLayout _layout; 
-
-    const string CharacterSet = "abcdefghijklmnopqrstuvwxyz,.;*-_!?@$%&():'\"";
-
     // todo: all punctuation in alphabet?
-    public static readonly ImmutableHashSet<char> CharacterSetDict;
-    readonly Random _random;
+    public static readonly FrozenSet<char> CharacterSetDict = CharacterSet.ToFrozenSet();
 
-    // Coordinates are determined with (X = 0, Y = 0) being top-left
-    static KeyboardLayoutTrainer()
+    public KeyboardLayoutTrainer(int count, int iterationCount)
     {
-        CharacterSetDict = CharacterSet.ToImmutableHashSet();
+        double[,] positionPreferences = PositionPreferences[Dimensions];
+        
+        var layouts = new KeyboardLayout[count];
+        for (int i = 0; i < count; i++)
+        {
+            layouts[i] = new KeyboardLayout(Dimensions, CharacterSet, i, UseStandardSpaceBar, positionPreferences, in FitnessWeights, SwipeDirectionPreferences);
+        }
+
+        var input = File.ReadAllText(InputFilePath);
+        EvolutionLoop(iterationCount, input, layouts);
+    }
+    
+    void EvolutionLoop(int iterationCount, string input, KeyboardLayout[] layouts)
+    {
+        LayoutVisualizer[] visualizers = layouts.AsParallel().Select(x => new LayoutVisualizer(x)).ToArray();
+        
+        visualizers.AsParallel().ForAll(visualizer => visualizer.Visualize());
+        
+        for (int i = 0; i < iterationCount; i++)
+        {
+            if(i % 10 == 0)
+                visualizers.AsParallel().ForAll(visualizer => visualizer.Visualize());
+            
+            layouts.AsParallel().ForAll(layout => layout.AddStimulus(input));
+            
+            
+            //  evolve
+            EvolveLayouts(ref layouts);
+            
+        }
+        
+        Console.WriteLine("<<<<<<<<<<<<<<<<<<<<<<<<< FINAL RESULTS >>>>>>>>>>>>>>>>>>>>>>>>>");
+        visualizers.AsParallel().ForAll(visualizer => visualizer.Visualize());
     }
 
-    public KeyboardLayoutTrainer(int width, int height, int seed)
+    static void EvolveLayouts(ref KeyboardLayout[] layouts)
     {
-        _random = new Random(seed);
-      //  _layout = new KeyboardLayout(width, height, CharacterSet, seed);
+        layouts = layouts.AsParallel().OrderByDescending(layout => layout.Fitness).ToArray();
+        
+        int quantityToReproduce = (int)Math.Floor(layouts.Length * ReproductionPercentage);
+        quantityToReproduce = quantityToReproduce % 2 == 0 ? quantityToReproduce : quantityToReproduce + 1;
+        
+        int quantityToReplace = layouts.Length - quantityToReproduce;
+        
+        Debug.Assert(ReproductionPercentage <= 0.5);
+        
+        double childrenPerCouple = quantityToReplace / (double) quantityToReproduce;
+
+        for (int i = 0; i < layouts.Length; i ++)
+        {
+            var parent = layouts[i];
+            int childCount = (int)childrenPerCouple;
+
+            int childStartIndex = layouts.Length - 1 - i - childCount;
+            int childEndIndex = childStartIndex + childCount;
+            
+            childStartIndex = childStartIndex < i ? childStartIndex : i;
+
+            if (childStartIndex > childEndIndex) // we've populated them all!
+                break;
+            
+            // get children from end of array
+            Span<KeyboardLayout> childrenToOverwrite = layouts
+                .AsSpan()
+                .Slice(layouts.Length - 1 - i - childCount,childCount);
+            
+            Reproduce(parent, childrenToOverwrite);
+        }
     }
 
-    public static KeyboardLayoutTrainer[] Reproduce (KeyboardLayoutTrainer parent1, KeyboardLayoutTrainer parent2, int quantity)
+    public static void Reproduce(KeyboardLayout parent, Span<KeyboardLayout> childrenToOverwrite)
     {
-        throw new NotImplementedException();
-    }
+        Key[,] parentKeys = parent.Traits;
+        
+        // todo: finish Mutate function
 
-
-    // todo: alternating thumbs. determine which thumb previous vs current
-    public void Mutate(float percentage)
-    {
-        throw new NotImplementedException();
+        foreach (var child in childrenToOverwrite)
+        {
+            child.OverwriteTraits(parentKeys);
+            child.Mutate(MutationFactor);
+        }
     }
+    
     
 }

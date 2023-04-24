@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Numerics;
@@ -6,12 +7,11 @@ using Core.Util;
 
 namespace ThumbKey;
 
-public partial class KeyboardLayout : IEvolvable<string>
+public class KeyboardLayout : IEvolvable<string, Key[,]>
 {
-    public readonly Key[,] Keys;
+    public Key[,] Traits { get; private set; }
 
     public Vector2Int Dimensions { get; }
-    readonly Random _random;
 
     public double Fitness { get; private set; }
 
@@ -19,12 +19,24 @@ public partial class KeyboardLayout : IEvolvable<string>
     readonly double _maxDistancePossible;
     readonly double[,] _positionPreferences;
 
-    public KeyboardLayout(int width, int height, string characterSet, int seed, bool separateStandardSpaceBar,
-        double[,] positionPreferences)
+    readonly Weights _fitnessWeights;
+    readonly FrozenDictionary<SwipeDirection, double> _swipeDirectionPreferences;
+    
+    // Coordinates are determined with (X = 0, Y = 0) being top-left
+    public KeyboardLayout(
+        Vector2Int dimensions,
+        string characterSet, 
+        int seed, 
+        bool separateStandardSpaceBar,
+        double[,] positionPreferences, 
+        in Weights weights, 
+        FrozenDictionary<SwipeDirection, double> swipeDirectionPreferences)
     {
-        Debug.Assert(positionPreferences.GetLength(0) == height && positionPreferences.GetLength(1) == width);
+        _fitnessWeights = weights;
+        _swipeDirectionPreferences = swipeDirectionPreferences;
         _positionPreferences = positionPreferences;
-        _random = new Random(seed);
+        Debug.Assert(positionPreferences.GetLength(0) == dimensions.Y && positionPreferences.GetLength(1) == dimensions.X);
+        var random = new Random(seed);
         char[] allCharacters = characterSet.ToCharArray();
 
         _separateStandardSpaceBar = separateStandardSpaceBar;
@@ -33,45 +45,14 @@ public partial class KeyboardLayout : IEvolvable<string>
             allCharacters = allCharacters.Append(' ').ToArray();
         }
 
-        _random.Shuffle(allCharacters);
-        Keys = new Key[height, width];
-        Dimensions = new Vector2Int(width, height);
-        _maxDistancePossible = Vector2.Distance(Vector2.One, Dimensions);
-        DistributeRandomKeyboardLayout(Keys, allCharacters, _random);
+        random.Shuffle(allCharacters);
+        Traits = new Key[dimensions.Y, dimensions.X];
+        Dimensions = dimensions;
+        _maxDistancePossible = Vector2.Distance(Vector2.One, dimensions);
+        DistributeRandomKeyboardLayout(Traits, allCharacters, random);
     }
 
-    #region Weight Definitions
-    // todo: put these weights/preferences in a config file managed by owning class?
-    static readonly Weights FitnessWeights = new()
-    {
-        Distance = 0.35,
-        Trajectory = 0.5,
-        HandAlternation = 1,
-        HandCollisionAvoidance = 0.2,
-        PositionalPreference = 0.6,
-        SwipeDirection = 1
-    };
-
-    const double CardinalPreference = 0.4;
-    const double DiagonalPreference = 0;
-    const double CenterPreference = 1;
-
-    static readonly ImmutableDictionary<SwipeDirection, double> SwipeDirectionPreferences =
-        new Dictionary<SwipeDirection, double>()
-        {
-            { SwipeDirection.Left, CardinalPreference },
-            { SwipeDirection.UpLeft, DiagonalPreference },
-            { SwipeDirection.Up, CardinalPreference },
-            { SwipeDirection.UpRight, DiagonalPreference },
-            { SwipeDirection.Right, CardinalPreference },
-            { SwipeDirection.DownRight, DiagonalPreference },
-            { SwipeDirection.Down, CardinalPreference },
-            { SwipeDirection.DownLeft, DiagonalPreference },
-            { SwipeDirection.Center, CenterPreference },
-        }.ToImmutableDictionary();
-    #endregion Weight Definitions
-    
-    static readonly ImmutableDictionary<SwipeDirection, double> SwipeAngles = new Dictionary<SwipeDirection, double>()
+    static readonly FrozenDictionary<SwipeDirection, double> SwipeAngles = new Dictionary<SwipeDirection, double>()
     {
         { SwipeDirection.Left, Math.PI },
         { SwipeDirection.UpLeft, 3 * Math.PI / 4 },
@@ -81,12 +62,12 @@ public partial class KeyboardLayout : IEvolvable<string>
         { SwipeDirection.DownRight, -Math.PI / 4 },
         { SwipeDirection.Down, -Math.PI / 2 },
         { SwipeDirection.DownLeft, -3 * Math.PI / 4 },
-    }.ToImmutableDictionary();
+    }.ToFrozenDictionary();
 
 
     Key GetKey(int x, int y)
     {
-        return Keys[y, x];
+        return Traits[y, x];
     }
 
     public Key GetKey(Vector2Int position) => GetKey(position.X, position.Y);
@@ -110,6 +91,8 @@ public partial class KeyboardLayout : IEvolvable<string>
         new(capacity: 1000),
         new(capacity: 1000),
     };
+    
+    public void ResetFitness() => Fitness = 0;
 
     public void AddStimulus(string text)
     {
@@ -141,7 +124,7 @@ public partial class KeyboardLayout : IEvolvable<string>
             for (var column = 0; column < Dimensions.X; column++)
             for (var row = 0; row < Dimensions.Y; row++)
             {
-                Key key = Keys[row, column];
+                Key key = Traits[row, column];
                 var contains = key.Contains(c, out var foundDirection);
                 if (!contains) continue;
 
@@ -161,6 +144,32 @@ public partial class KeyboardLayout : IEvolvable<string>
             _inputActions[fingerIndex].Add(currentInput);
         }
     }
+    
+    public void OverwriteTraits(Key[,] newKeys)
+    {        
+        Debug.Assert(newKeys.GetLength(0) == Dimensions.Y && 
+                     newKeys.GetLength(1) == Dimensions.X);
+
+        for(int y = 0; y < Dimensions.Y; y++)
+        for (int x = 0; x < Dimensions.X; x++)
+        {
+            Traits[y,x].OverwriteKeysWith(newKeys[y,x]);
+        }
+    }
+
+    public void Mutate(double amount)
+    {
+        ResetFitness();
+        
+        // shuffle % of key characters with each other
+        // key.swaprandomcharacter
+        throw new NotImplementedException();
+    }
+
+    public void Kill()
+    {
+        ResetFitness();
+    }
 
     double CalculateTravelScore(in InputAction currentTypedKey, in InputAction previousInputOfThumb,
         in InputAction previousInput, double maxDistancePossible)
@@ -170,7 +179,7 @@ public partial class KeyboardLayout : IEvolvable<string>
 
         if (sameKeyAndSwipe)
         {
-            return FitnessWeights.CalculateScore(
+            return _fitnessWeights.CalculateScore(
                 closeness01: 1,
                 trajectory01: currentTypedKey.SwipeDirection switch // repeated swipes on the same key are cumbersome
                 {
@@ -184,7 +193,7 @@ public partial class KeyboardLayout : IEvolvable<string>
                 handAlternation01: 1, // not technically hand alternation, but there's no reason to penalize double-letters
                 handCollisionAvoidance01: 1,
                 positionalPreference01: GetPreferredPositionScore(currentTypedKey.KeyPosition),
-                swipeDirectionPreference01: SwipeDirectionPreferences[currentTypedKey.SwipeDirection]
+                swipeDirectionPreference01: _swipeDirectionPreferences[currentTypedKey.SwipeDirection]
             );
         }
 
@@ -200,7 +209,7 @@ public partial class KeyboardLayout : IEvolvable<string>
 
         bool alternatingThumbs = previousInput.Thumb != currentTypedKey.Thumb;
 
-        return FitnessWeights.CalculateScore(
+        return _fitnessWeights.CalculateScore(
             closeness01: distanceEffectiveness,
             trajectory01: trajectoryCorrectness,
             handAlternation01: alternatingThumbs
@@ -208,7 +217,7 @@ public partial class KeyboardLayout : IEvolvable<string>
                 : 0, // not technically hand alternation, but there's no reason to penalize double-letters
             handCollisionAvoidance01: previousInput.KeyPosition.X == currentTypedKey.KeyPosition.X ? 0 : 1,
             positionalPreference01: GetPreferredPositionScore(currentTypedKey.KeyPosition),
-            swipeDirectionPreference01: SwipeDirectionPreferences[currentTypedKey.SwipeDirection]
+            swipeDirectionPreference01: _swipeDirectionPreferences[currentTypedKey.SwipeDirection]
         );
     }
 
@@ -243,13 +252,13 @@ public partial class KeyboardLayout : IEvolvable<string>
             swipeDirection: SwipeDirection.Center,
             thumb: previousTypedKeyOfThumb.Thumb);
 
-        return FitnessWeights.CalculateScore(
+        return _fitnessWeights.CalculateScore(
             closeness01: distanceEffectiveness,
             trajectory01: trajectoryCorrectness,
             handAlternation01: 1, // spacebar can always use opposite hand
             handCollisionAvoidance01: 1, // spacebar is wide enough to never worry about overlap
             positionalPreference01: 0.5, // spacebar position is relatively standardized, todo: allow non-standard space position? 3x4 layout?
-            swipeDirectionPreference01: SwipeDirectionPreferences[spaceKeyAction.SwipeDirection]
+            swipeDirectionPreference01: _swipeDirectionPreferences[spaceKeyAction.SwipeDirection]
         );
 
         Vector2 GetSpaceBarPressPosition(in Vector2Int previousThumbPosition)
