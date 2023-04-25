@@ -35,10 +35,7 @@ public class Key
 
     public void OverwriteKeysWith(Key other)
     {
-        for (int i = 0; i < _characters.Length; i++)
-        {
-            _characters[i] = other._characters[i];
-        }
+        other._characters.CopyTo(_characters.AsSpan());
     }
 
     public void RandomlyDistributeCharacters(ReadOnlySpan<char> characters, Random random)
@@ -92,20 +89,38 @@ public class Key
         return index != -1;
     }
 
-    internal static void SwapRandomCharacters(Key key1, Key key2, Random random)
+    internal static void SwapRandomCharacterFromEach(Key key1, Key key2, Random random)
     {
         Debug.Assert(key1.GetValidCharacterCount() > 0 && key2.GetValidCharacterCount() > 0);
         
         char char1, char2;
         int index1, index2;
-
+        const int centerKeyIndex = (int)SwipeDirection.Center;
+        var shouldLoop = true;
+        
         do
         {
             index1 = random.Next(0, MaxCharacterCount);
             index2 = random.Next(0, MaxCharacterCount);
             char1 = key1[index1];
             char2 = key2[index2];
-        } while (char1 == char2); 
+
+            // make sure a center key is not empty or not a letter
+            if (index1 == centerKeyIndex)
+            {
+                if (char2 == default || !char.IsLetter(char2))
+                    continue;
+            }
+
+            if (index2 == centerKeyIndex)
+            {
+                if (char1 == default || !char.IsLetter(char1))
+                    continue;
+            }
+
+            shouldLoop = char1 == char2;
+
+        } while (shouldLoop); 
         // loop if both are `default` or if the implementation changes and both characters can be identical
 
         key1._characters[index1] = char2;

@@ -21,6 +21,7 @@ public class KeyboardLayout : IEvolvable<string, Key[,]>
 
     readonly Weights _fitnessWeights;
     readonly FrozenDictionary<SwipeDirection, double> _swipeDirectionPreferences;
+    Random _random;
     
     // Coordinates are determined with (X = 0, Y = 0) being top-left
     public KeyboardLayout(
@@ -37,6 +38,7 @@ public class KeyboardLayout : IEvolvable<string, Key[,]>
         _positionPreferences = positionPreferences;
         Debug.Assert(positionPreferences.GetLength(0) == dimensions.Y && positionPreferences.GetLength(1) == dimensions.X);
         var random = new Random(seed);
+        _random = random;
         char[] allCharacters = characterSet.ToCharArray();
 
         _separateStandardSpaceBar = separateStandardSpaceBar;
@@ -157,13 +159,54 @@ public class KeyboardLayout : IEvolvable<string, Key[,]>
         }
     }
 
-    public void Mutate(double amount)
+    public void Mutate(double percentageOfCharactersToMutate)
     {
         ResetFitness();
         
         // shuffle % of key characters with each other
-        // key.swaprandomcharacter
-        throw new NotImplementedException();
+        Key[] allKeys = new Key[Dimensions.X * Dimensions.Y];
+        for(int y = 0; y < Dimensions.Y; y++)
+        for (int x = 0; x < Dimensions.X; x++)
+        {
+            allKeys[y * Dimensions.X + x] = Traits[y, x];
+        }
+        
+        _random.Shuffle(allKeys);
+        
+        // todo: this is ugly af
+
+        double characterCount = allKeys.Length * Key.MaxCharacterCount;
+        double quantityToShuffle = characterCount * percentageOfCharactersToMutate;
+        double quantityPerKey = quantityToShuffle / allKeys.Length;
+        int quantityPerSwap = (int)Math.Round(quantityPerKey / 2);
+
+        bool singleSwapOnly = quantityPerSwap == 0;
+        int iterator = 1;
+
+        if (singleSwapOnly)
+        {
+            iterator = 2;
+            quantityPerSwap = 1;
+        }
+        
+        // we use "iterator" here to determine if we've moving through the array one at a time or two at a time.
+        // we only move two at a time if we the quantityPerSwap rounds down to zero,
+        // so we at least ensure that every pair is swapped once.
+        // otherwise we iterate one at a time, so every pair is swapped twice - once with each of its neighbors.
+        // that is why above
+        for (int i = 0; i < allKeys.Length - 1; i += iterator)
+        for (int j = 0; j < quantityPerSwap; j++)
+        {
+            Key.SwapRandomCharacterFromEach(allKeys[i], allKeys[i + 1], _random);
+        }
+
+        // the above loop doesn't wrap around the array so the first and last elements are swapped, so we do that here. 
+        // awkward yes, but more performant and readable than a ternary statement in the above loop.
+        if (!singleSwapOnly)
+        {
+            for (int i = 0; i < quantityPerSwap; i++)
+                Key.SwapRandomCharacterFromEach(allKeys[0], allKeys[^1], _random);
+        }
     }
 
     public void Kill()

@@ -10,7 +10,7 @@ public partial class KeyboardLayoutTrainer
     const string InputFilePath = "";
     static readonly Vector2Int Dimensions = new(3, 3);
     const double ReproductionPercentage = 0.5;
-    const double MutationFactor = 0.1;
+    const double MutationFactor = 0.15;
     
     static readonly Dictionary<Vector2Int, double[,]> PositionPreferences = new()
     {

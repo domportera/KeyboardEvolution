@@ -12,14 +12,14 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<string, KeyboardLay
     // todo: all punctuation in alphabet?
     public static readonly FrozenSet<char> CharacterSetDict = CharacterSet.ToFrozenSet();
 
-    public KeyboardLayoutTrainer(int count, int iterationCount)
+    public KeyboardLayoutTrainer(int count, int iterationCount, int seed)
     {
         double[,] positionPreferences = PositionPreferences[Dimensions];
         
         var layouts = new KeyboardLayout[count];
         for (int i = 0; i < count; i++)
         {
-            layouts[i] = new KeyboardLayout(Dimensions, CharacterSet, i, UseStandardSpaceBar, positionPreferences, in FitnessWeights, SwipeDirectionPreferences);
+            layouts[i] = new KeyboardLayout(Dimensions, CharacterSet, seed + i, UseStandardSpaceBar, positionPreferences, in FitnessWeights, SwipeDirectionPreferences);
         }
 
         var input = File.ReadAllText(InputFilePath);
@@ -87,8 +87,6 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<string, KeyboardLay
     public static void Reproduce(KeyboardLayout parent, Span<KeyboardLayout> childrenToOverwrite)
     {
         Key[,] parentKeys = parent.Traits;
-        
-        // todo: finish Mutate function
 
         foreach (var child in childrenToOverwrite)
         {
