@@ -7,7 +7,7 @@ using Core.Util;
 
 namespace ThumbKey;
 
-public partial class KeyboardLayoutTrainer : IEvolverAsexual<string, KeyboardLayout, Key[,]>
+public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, KeyboardLayout, Key[,]>
 {
     // todo: all punctuation in alphabet?
     public static readonly FrozenSet<char> CharacterSetDict = CharacterSet.ToFrozenSet();
@@ -31,15 +31,22 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<string, KeyboardLay
         LayoutVisualizer[] visualizers = layouts.AsParallel().Select(x => new LayoutVisualizer(x)).ToArray();
         
         visualizers.AsParallel().ForAll(visualizer => visualizer.Visualize());
-        
+
+        var inputSpan = input.AsSpan();
         for (int i = 0; i < iterationCount; i++)
         {
             if(i % 10 == 0)
                 visualizers.AsParallel().ForAll(visualizer => visualizer.Visualize());
-            
-            layouts.AsParallel().ForAll(layout => layout.AddStimulus(input));
-            
-            
+
+            bool success;
+            while(RedditDataReader.GetAllStringsOfTag(in inputSpan, out var range))
+            {
+                var inputInfo = new TextRange(input, range);
+                layouts.AsParallel().ForAll(layout => layout.AddStimulus(inputInfo));
+                inputSpan = inputSpan.Slice(range.End.Value);
+            }
+
+
             //  evolve
             EvolveLayouts(ref layouts);
             

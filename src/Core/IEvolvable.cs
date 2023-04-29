@@ -7,7 +7,7 @@ public interface IEvolvable<in T, TEvolvableTraits>
     public void AddStimulus(T input);
     public void Kill();
     public void ResetFitness();
-    public void Mutate(double amount);
+    public void Mutate(double percentageOfCharactersToMutate);
     public void OverwriteTraits(TEvolvableTraits newTraits);
 }
 

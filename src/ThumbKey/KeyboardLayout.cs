@@ -7,7 +7,19 @@ using Core.Util;
 
 namespace ThumbKey;
 
-public class KeyboardLayout : IEvolvable<string, Key[,]>
+public record struct TextRange
+{
+    public readonly string Text;
+    public readonly Range Range;
+
+    public TextRange(string text, Range range)
+    {
+        Text = text;
+        Range = range;
+    }
+}
+
+public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 {
     public Key[,] Traits { get; private set; }
 
@@ -96,12 +108,11 @@ public class KeyboardLayout : IEvolvable<string, Key[,]>
     
     public void ResetFitness() => Fitness = 0;
 
-    public void AddStimulus(string text)
+    public void AddStimulus(TextRange rangeInfo)
     {
-        var input = text.AsSpan();
-
         InputAction previousTypedKey = default;
 
+        ReadOnlySpan<char> input = rangeInfo.Text.AsSpan(rangeInfo.Range);
         foreach (char rawChar in input)
         {
             if (_separateStandardSpaceBar && rawChar == ' ')
