@@ -7,18 +7,6 @@ using Core.Util;
 
 namespace ThumbKey;
 
-public record struct TextRange
-{
-    public readonly string Text;
-    public readonly Range Range;
-
-    public TextRange(string text, Range range)
-    {
-        Text = text;
-        Range = range;
-    }
-}
-
 public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 {
     public Key[,] Traits { get; private set; }
@@ -75,7 +63,6 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         _previousInputAction =
             _previousInputs[(int)Thumb.Right]; // default key - assumes user opens text field with right thumb
 
-        random.Shuffle(allCharacters);
         Traits = new Key[dimensions.Y, dimensions.X];
         Dimensions = dimensions;
         _maxDistancePossible = Vector2.Distance(Vector2.One, dimensions);
@@ -107,23 +94,50 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     {
         Vector2Int keyDimensions = (keys.GetLength(1), keys.GetLength(1));
         int index = 0;
-        int lettersPerKey = characterSet.Length / keys.Length;
+        int charactersPerKey = characterSet.Length / keys.Length;
+
+        EnsureAllKeysWillHaveALetter();
+
         ReadOnlySpan<char> characterSpan = characterSet.AsSpan();
         for (int y = 0; y < keyDimensions.Y; y++)
         for (int x = 0; x < keyDimensions.X; x++)
         {
-            var lastIndex = Math.Clamp(index + lettersPerKey, 0, characterSet.Length - 1);
+            var lastIndex = Math.Clamp(index + charactersPerKey, 0, characterSet.Length - 1);
             var thisKeysCharacters = characterSpan.Slice(index, lastIndex - index);
             keys[y, x] = new Key(thisKeysCharacters, random);
             index = lastIndex;
+        }
+
+        void EnsureAllKeysWillHaveALetter()
+        {
+            bool allCharactersWillHaveLetters = false;
+            do
+            {
+                random.Shuffle(characterSet);
+                allCharactersWillHaveLetters = true;
+                for (int i = 0; i < characterSet.Length - charactersPerKey; i++)
+                {
+                    var hasLetters = false;
+                    for (int j = 0; j < charactersPerKey; j++)
+                    {
+                        hasLetters |= char.IsLetter(characterSet[i + j]);
+                    }
+
+                    if (hasLetters) continue;
+                    allCharactersWillHaveLetters = false;
+                    break;
+                }
+            } while (!allCharactersWillHaveLetters);
         }
     }
 
     public void ResetFitness() => Fitness = 0;
 
-    public void AddStimulus(TextRange rangeInfo)
+    TextRange? _currentStimulus;
+
+    public void Evaluate()
     {
-        ReadOnlySpan<char> input = rangeInfo.Text.AsSpan(rangeInfo.Range);
+        ReadOnlySpan<char> input = _currentStimulus!.Text.AsSpan(_currentStimulus.Range);
         foreach (char rawChar in input)
         {
             if (_separateStandardSpaceBar && rawChar == ' ')
@@ -132,7 +146,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 InputAction previousInputActionOfThisThumb = _previousInputAction.Thumb == Thumb.Left
                     ? _previousInputs[(int)Thumb.Right]
                     : _previousInputs[(int)Thumb.Left];
-                
+
                 Fitness += CalculateTravelScoreStandardSpaceBar(in previousInputActionOfThisThumb,
                     out InputAction spaceKeyAction,
                     _maxDistancePossibleStandardSpacebar);
@@ -175,6 +189,11 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             _previousInputAction = currentInput;
             _previousInputs[fingerIndex] = currentInput;
         }
+    }
+
+    public void SetStimulus(TextRange rangeInfo)
+    {
+        _currentStimulus = rangeInfo;
     }
 
     public void OverwriteTraits(Key[,] newKeys)

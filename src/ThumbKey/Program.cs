@@ -11,4 +11,4 @@ foreach (var arg in args)
 
 const string path = @"C:\Users\Dom\Downloads\reddit_casual.json";
 const string tag = "text";
-var thumbKey = new KeyboardLayoutTrainer(path, tag, 100,100,100);
+var thumbKey = new KeyboardLayoutTrainer(path, tag, 100,1000, 10000, DateTime.UtcNow.Second);

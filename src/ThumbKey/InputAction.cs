@@ -4,6 +4,21 @@ namespace ThumbKey;
 
 readonly struct InputAction
 {
+    public bool Equals(InputAction other)
+    {
+        return KeyPosition == other.KeyPosition && SwipeDirection == other.SwipeDirection && Thumb == other.Thumb;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is InputAction other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(KeyPosition, (int)SwipeDirection, (int)Thumb);
+    }
+
     public readonly Vector2Int KeyPosition;
     public readonly SwipeDirection SwipeDirection;
     public readonly Thumb Thumb;

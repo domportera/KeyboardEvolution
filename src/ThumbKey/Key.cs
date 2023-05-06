@@ -74,14 +74,13 @@ public class Key
     void EnsureCenterHasCharacter(Random random, IList<int> indexesContainingCharacter)
     {
         const int centerIndex = (int)SwipeDirection.Center;
-        if (_characters[centerIndex] != default) return;
+        if (char.IsLetter(_characters[centerIndex])) return;
 
-        int index = random.Next(indexesContainingCharacter.Count);
-        int charIndexToStealFrom = indexesContainingCharacter[index];
-        char stolenCharacter = _characters[charIndexToStealFrom];
-
+        int indexWithCharacter = indexesContainingCharacter.First(x => char.IsLetter(_characters[x]));
+        char stolenCharacter = _characters[indexWithCharacter];
+        char originalCharacter = _characters[centerIndex]; 
+        _characters[indexWithCharacter] = originalCharacter;
         _characters[centerIndex] = stolenCharacter;
-        _characters[charIndexToStealFrom] = default;
     }
 
     internal bool Contains(char c, out SwipeDirection direction)
