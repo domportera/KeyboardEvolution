@@ -29,26 +29,31 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     readonly bool _separateStandardSpaceBar;
     readonly double _maxDistancePossible;
+    readonly double _maxDistancePossibleStandardSpacebar;
     readonly double[,] _positionPreferences;
 
     readonly Weights _fitnessWeights;
     readonly FrozenDictionary<SwipeDirection, double> _swipeDirectionPreferences;
     Random _random;
-    
+    readonly InputAction[] _previousInputs = new InputAction[2];
+
+    InputAction _previousInputAction;
+
     // Coordinates are determined with (X = 0, Y = 0) being top-left
     public KeyboardLayout(
         Vector2Int dimensions,
-        string characterSet, 
-        int seed, 
+        string characterSet,
+        int seed,
         bool separateStandardSpaceBar,
-        double[,] positionPreferences, 
-        in Weights weights, 
+        double[,] positionPreferences,
+        in Weights weights,
         FrozenDictionary<SwipeDirection, double> swipeDirectionPreferences)
     {
         _fitnessWeights = weights;
         _swipeDirectionPreferences = swipeDirectionPreferences;
         _positionPreferences = positionPreferences;
-        Debug.Assert(positionPreferences.GetLength(0) == dimensions.Y && positionPreferences.GetLength(1) == dimensions.X);
+        Debug.Assert(positionPreferences.GetLength(0) == dimensions.Y &&
+                     positionPreferences.GetLength(1) == dimensions.X);
         var random = new Random(seed);
         _random = random;
         char[] allCharacters = characterSet.ToCharArray();
@@ -58,6 +63,17 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         {
             allCharacters = allCharacters.Append(' ').ToArray();
         }
+        else
+        {
+            // the space bar is always in the bottom row, so we can calculate the max distance possible
+            _maxDistancePossibleStandardSpacebar = Vector2.Distance(Vector2.Zero, dimensions + (0, 1));
+        }
+
+        Debug.Assert((int)Thumb.Left == 0 && (int)Thumb.Right == 1);
+        _previousInputs[(int)Thumb.Left] = new(0, Dimensions.Y / 2, SwipeDirection.Center, Thumb.Left);
+        _previousInputs[(int)Thumb.Right] = new(Dimensions.X - 1, Dimensions.Y / 2, SwipeDirection.Center, Thumb.Right);
+        _previousInputAction =
+            _previousInputs[(int)Thumb.Right]; // default key - assumes user opens text field with right thumb
 
         random.Shuffle(allCharacters);
         Traits = new Key[dimensions.Y, dimensions.X];
@@ -89,38 +105,38 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     static void DistributeRandomKeyboardLayout(Key[,] keys, char[] characterSet, Random random)
     {
+        Vector2Int keyDimensions = (keys.GetLength(1), keys.GetLength(1));
         int index = 0;
         int lettersPerKey = characterSet.Length / keys.Length;
-        ReadOnlySpan<char> letterSpan = characterSet.AsSpan();
-        foreach (Key key in keys)
+        ReadOnlySpan<char> characterSpan = characterSet.AsSpan();
+        for (int y = 0; y < keyDimensions.Y; y++)
+        for (int x = 0; x < keyDimensions.X; x++)
         {
-            var lastIndex = Math.Clamp(index + lettersPerKey, 0, keys.Length - 1);
-            key.RandomlyDistributeCharacters(letterSpan.Slice(index, lastIndex - index), random);
+            var lastIndex = Math.Clamp(index + lettersPerKey, 0, characterSet.Length - 1);
+            var thisKeysCharacters = characterSpan.Slice(index, lastIndex - index);
+            keys[y, x] = new Key(thisKeysCharacters, random);
             index = lastIndex;
         }
     }
 
-    readonly IReadOnlyList<List<InputAction>> _inputActions = new List<List<InputAction>>()
-    {
-        new(capacity: 1000),
-        new(capacity: 1000),
-    };
-    
     public void ResetFitness() => Fitness = 0;
 
     public void AddStimulus(TextRange rangeInfo)
     {
-        InputAction previousTypedKey = default;
-
         ReadOnlySpan<char> input = rangeInfo.Text.AsSpan(rangeInfo.Range);
         foreach (char rawChar in input)
         {
             if (_separateStandardSpaceBar && rawChar == ' ')
             {
-                // todo: handle first key press, where there is no previous typed key
-                Fitness += CalculateTravelScoreStandardSpaceBar(previousTypedKey, out InputAction spaceKeyAction,
-                    _maxDistancePossible);
-                previousTypedKey = spaceKeyAction;
+                // thumbs to spacebar can always alternate
+                InputAction previousInputActionOfThisThumb = _previousInputAction.Thumb == Thumb.Left
+                    ? _previousInputs[(int)Thumb.Right]
+                    : _previousInputs[(int)Thumb.Left];
+                
+                Fitness += CalculateTravelScoreStandardSpaceBar(in previousInputActionOfThisThumb,
+                    out InputAction spaceKeyAction,
+                    _maxDistancePossibleStandardSpacebar);
+                _previousInputAction = spaceKeyAction;
                 continue;
             }
 
@@ -141,7 +157,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 var contains = key.Contains(c, out var foundDirection);
                 if (!contains) continue;
 
-                var thumb = GetWhichThumb(in previousTypedKey, column, Dimensions);
+                var thumb = GetWhichThumb(in _previousInputAction, column, Dimensions);
                 currentInput = new InputAction(column, row, foundDirection, thumb);
                 break;
             }
@@ -149,41 +165,42 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             Debug.Assert(currentInput != default);
 
             int fingerIndex = (int)currentInput.Thumb;
-            var previousTypedByThisThumb = _inputActions[fingerIndex][^1];
+            var previousTypedByThisThumb = _previousInputs[fingerIndex];
             // todo: handle first key press, where there is no previous typed key
-            Fitness += CalculateTravelScore(in previousTypedKey, in currentInput, in previousTypedByThisThumb,
+            Fitness += CalculateTravelScore(
+                currentTypedKey: in currentInput,
+                previousInputOfThumb: in previousTypedByThisThumb,
+                previousInput: in _previousInputAction,
                 _maxDistancePossible);
-            previousTypedKey = currentInput;
-            _inputActions[fingerIndex].Add(currentInput);
+            _previousInputAction = currentInput;
+            _previousInputs[fingerIndex] = currentInput;
         }
     }
-    
+
     public void OverwriteTraits(Key[,] newKeys)
-    {        
-        Debug.Assert(newKeys.GetLength(0) == Dimensions.Y && 
+    {
+        Debug.Assert(newKeys.GetLength(0) == Dimensions.Y &&
                      newKeys.GetLength(1) == Dimensions.X);
 
-        for(int y = 0; y < Dimensions.Y; y++)
+        for (int y = 0; y < Dimensions.Y; y++)
         for (int x = 0; x < Dimensions.X; x++)
         {
-            Traits[y,x].OverwriteKeysWith(newKeys[y,x]);
+            Traits[y, x].OverwriteKeysWith(newKeys[y, x]);
         }
     }
 
     public void Mutate(double percentageOfCharactersToMutate)
     {
-        ResetFitness();
-        
         // shuffle % of key characters with each other
         Key[] allKeys = new Key[Dimensions.X * Dimensions.Y];
-        for(int y = 0; y < Dimensions.Y; y++)
+        for (int y = 0; y < Dimensions.Y; y++)
         for (int x = 0; x < Dimensions.X; x++)
         {
             allKeys[y * Dimensions.X + x] = Traits[y, x];
         }
-        
+
         _random.Shuffle(allKeys);
-        
+
         // todo: this is ugly af
 
         double characterCount = allKeys.Length * Key.MaxCharacterCount;
@@ -199,7 +216,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             iterator = 2;
             quantityPerSwap = 1;
         }
-        
+
         // we use "iterator" here to determine if we've moving through the array one at a time or two at a time.
         // we only move two at a time if we the quantityPerSwap rounds down to zero,
         // so we at least ensure that every pair is swapped once.
@@ -251,12 +268,17 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             );
         }
 
-        var travel = currentTypedKey.KeyPosition - previousInputOfThumb.KeyPosition;
-        var travelAngleRadians = AngleUtils.AngleFromVector2(travel); // 0 - 2PI 
-        var trajectoryCorrectness =
-            1 - AngleUtils.NormalizedAngleDifference(
-                travelAngleRadians,
-                SwipeAngles[previousInputOfThumb.SwipeDirection]);
+        double trajectoryCorrectness = 1;
+
+        if (previousInputOfThumb.SwipeDirection != SwipeDirection.Center)
+        {
+            var travel = currentTypedKey.KeyPosition - previousInputOfThumb.KeyPosition;
+            var travelAngleRadians = AngleUtils.AngleFromVector2(travel); // 0 - 2PI 
+            trajectoryCorrectness =
+                1 - AngleUtils.NormalizedAngleDifference(
+                    travelAngleRadians,
+                    SwipeAngles[previousInputOfThumb.SwipeDirection]);
+        }
 
         float distanceTraveled = Vector2.Distance(previousInputOfThumb.KeyPosition, currentTypedKey.KeyPosition);
         double distanceEffectiveness = 1 - distanceTraveled / maxDistancePossible;
@@ -277,7 +299,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     double GetPreferredPositionScore(in Vector2Int position) => _positionPreferences[position.Y, position.X];
 
-    double CalculateTravelScoreStandardSpaceBar(InputAction previousTypedKeyOfThumb, out InputAction spaceKeyAction,
+    double CalculateTravelScoreStandardSpaceBar(in InputAction previousTypedKeyOfThumb, out InputAction spaceKeyAction,
         double maxDistancePossible)
     {
         Vector2 spaceBarPosition = GetSpaceBarPressPosition(in previousTypedKeyOfThumb.KeyPosition);
@@ -296,6 +318,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             trajectoryCorrectness =
                 1 - AngleUtils.NormalizedAngleDifference(travelAngleRadians, SwipeAngles[previousSwipeDirection]);
         }
+
 
         float distanceTraveled = Math.Abs(spaceBarPosition.Y - previousTypedKeyOfThumb.KeyPosition.Y);
         double distanceEffectiveness = 1 - distanceTraveled / maxDistancePossible;

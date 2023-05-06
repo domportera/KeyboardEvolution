@@ -18,7 +18,7 @@ public static class RedditDataReader
     /// <param name="range"></param>
     /// <returns></returns>
     /// <exception cref="NotImplementedException"></exception>
-    public static bool GetAllStringsOfTag(ReadOnlySpan<char> inputSpan, string tag, int capacity, out List<Range> range)
+    public static void GetAllStringsOfTag(ReadOnlySpan<char> inputSpan, string tag, int capacity, out List<Range> range)
     {
         Console.WriteLine("Parsing body text...");
         string wholeTag = $"\"{tag}\":";
@@ -31,20 +31,19 @@ public static class RedditDataReader
 
         do
         {
-            inputSpan = inputSpan.Slice(startIndex + tagSpan.Length);
-            int stringStartIndex = inputSpan.IndexOf('\"') + 1;
-
-            int stringEndIndex;
+            startIndex += tagSpan.Length;
+            inputSpan = inputSpan.Slice(startIndex);
+            
+            int length;
             bool gotEnd;
 
             do
             {
-                stringEndIndex = inputSpan.IndexOf('\"');
-                gotEnd = inputSpan[stringEndIndex - 1] != '\\';
+                length = inputSpan.IndexOf('\"');
+                gotEnd = inputSpan[length - 1] != '\\';
             } while (!gotEnd);
 
-            int length = stringEndIndex - stringStartIndex;
-            range.Add(new Range(stringStartIndex, length));
+            range.Add(new Range(startIndex, startIndex + length));
             startIndex = inputSpan.IndexOf(tagSpan);
         } while (startIndex != -1);
     }

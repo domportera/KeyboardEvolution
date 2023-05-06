@@ -16,7 +16,7 @@ public readonly record struct Weights
         
     public double SwipeDirection { get; init; }
 
-    double TotalWeight => Distance + Trajectory + HandAlternation + HandCollisionAvoidance + PositionalPreference;
+    double TotalWeight => Distance + Trajectory + HandAlternation + HandCollisionAvoidance + PositionalPreference + SwipeDirection;
     public double CalculateScore(double closeness01, double trajectory01, double handAlternation01,
         double handCollisionAvoidance01, double positionalPreference01, double swipeDirectionPreference01)
     {

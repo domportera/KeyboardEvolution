@@ -1,9 +1,11 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 using Core;
 using Core.Util;
+using ThumbKey.Visualization;
 
 namespace ThumbKey;
 
@@ -12,7 +14,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
     // todo: all punctuation in alphabet?
     public static readonly FrozenSet<char> CharacterSetDict = CharacterSet.ToFrozenSet();
 
-    public KeyboardLayoutTrainer(int count, int iterationCount, int seed)
+    public KeyboardLayoutTrainer(string textPath, string tag, int count, int iterationCount, int seed)
     {
         double[,] positionPreferences = PositionPreferences[Dimensions];
         
@@ -22,34 +24,50 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             layouts[i] = new KeyboardLayout(Dimensions, CharacterSet, seed + i, UseStandardSpaceBar, positionPreferences, in FitnessWeights, SwipeDirectionPreferences);
         }
 
-        var input = File.ReadAllText(InputFilePath);
-        EvolutionLoop(iterationCount, input, layouts);
+        Console.WriteLine($"Reading file at {textPath}");
+        var input = File.ReadAllText(textPath);
+        EvolutionLoop(iterationCount, input, tag, layouts);
     }
     
-    void EvolutionLoop(int iterationCount, string input, KeyboardLayout[] layouts)
+    void EvolutionLoop(int iterationCount, string input, string tag, KeyboardLayout[] layouts)
     {
         LayoutVisualizer[] visualizers = layouts.AsParallel().Select(x => new LayoutVisualizer(x)).ToArray();
         
         visualizers.AsParallel().ForAll(visualizer => visualizer.Visualize());
-
         var inputSpan = input.AsSpan();
+
+        Stopwatch stopwatch = new();
+        Console.WriteLine($"Parsing input for tag \"{tag}\"...");
+        RedditDataReader.GetAllStringsOfTag(inputSpan, tag, 1000, out var ranges);
+        
         for (int i = 0; i < iterationCount; i++)
         {
-            if(i % 10 == 0)
-                visualizers.AsParallel().ForAll(visualizer => visualizer.Visualize());
-
-            bool success;
-            while(RedditDataReader.GetAllStringsOfTag(in inputSpan, out var range))
+            if (i % 10 == 0)
             {
-                var inputInfo = new TextRange(input, range);
-                layouts.AsParallel().ForAll(layout => layout.AddStimulus(inputInfo));
-                inputSpan = inputSpan.Slice(range.End.Value);
+                Console.WriteLine("Printing visualizations...");
+                foreach (var visualizer in visualizers) visualizer.Visualize();
             }
 
+            Console.WriteLine($"Generation {i + 1}...");
+            stopwatch.Start();
+            foreach(var range in ranges)
+            {
+                var inputInfo = new TextRange(input, range);// todo: spans use Range's End as end index instead of length - fix this
+                layouts.AsParallel().ForAll(layout => layout.AddStimulus(inputInfo));
+            }
+            stopwatch.Stop();
+            Console.WriteLine($"Took {stopwatch.ElapsedMilliseconds}ms to process {ranges.Count} ranges");
+            stopwatch.Reset();
 
+            double averageFitness = layouts.Average(x => x.Fitness);
+            Console.WriteLine("Average fitness of this generation: " + averageFitness.ToString(CultureInfo.InvariantCulture));
+            Console.WriteLine("Evolving...");
             //  evolve
             EvolveLayouts(ref layouts);
             
+            // reset fitness
+            foreach(var layout in layouts)
+                layout.ResetFitness();
         }
         
         Console.WriteLine("<<<<<<<<<<<<<<<<<<<<<<<<< FINAL RESULTS >>>>>>>>>>>>>>>>>>>>>>>>>");
@@ -74,7 +92,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             var parent = layouts[i];
             int childCount = (int)childrenPerCouple;
 
-            int childStartIndex = layouts.Length - 1 - i - childCount;
+            int childStartIndex = layouts.Length - i - childCount;
             int childEndIndex = childStartIndex + childCount;
             
             childStartIndex = childStartIndex < i ? childStartIndex : i;
@@ -85,7 +103,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             // get children from end of array
             Span<KeyboardLayout> childrenToOverwrite = layouts
                 .AsSpan()
-                .Slice(layouts.Length - 1 - i - childCount,childCount);
+                .Slice(childStartIndex, childCount);
             
             Reproduce(parent, childrenToOverwrite);
         }

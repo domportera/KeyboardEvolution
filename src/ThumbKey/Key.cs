@@ -7,22 +7,26 @@ namespace ThumbKey;
 public class Key
 {
     public const int MaxCharacterCount = 9;
-    readonly char[] _characters;
+    readonly char[] _characters = new char[MaxCharacterCount];
 
-    private Key(Vector2Int dimensions)
+    internal Key(ReadOnlySpan<char> characters)
     {
-        throw new NotImplementedException();
-        // disallow default construction
+        Debug.Assert(characters.Length == MaxCharacterCount);
+        double side = Math.Sqrt(MaxCharacterCount);
+        Debug.Assert(side % 1 == 0); // must be square... for now....
+
+        Dimensions = ((int)side, (int)side);
+        _characters = characters.ToArray();
     }
 
     internal Key(ReadOnlySpan<char> characters, Random random)
     {
-        _characters = new char[MaxCharacterCount];
+        Debug.Assert(characters.Length <= MaxCharacterCount);
         double side = Math.Sqrt(MaxCharacterCount);
         Debug.Assert(side % 1 == 0); // must be square... for now....
-        
+
         Dimensions = new((int)side, (int)side);
-        
+
         RandomlyDistributeCharacters(characters, random);
     }
 
@@ -37,12 +41,12 @@ public class Key
     {
         other._characters.CopyTo(_characters.AsSpan());
     }
-
-    public void RandomlyDistributeCharacters(ReadOnlySpan<char> characters, Random random)
+    
+    void RandomlyDistributeCharacters(ReadOnlySpan<char> characters, Random random)
     {
         Debug.Assert(characters.Length <= _characters.Length);
         Debug.Assert(characters.Length > 0);
-        
+
         for (int i = 0; i < characters.Length; i++)
         {
             var character = characters[i];
@@ -55,7 +59,7 @@ public class Key
         EnsureCenterHasCharacter(random, indexesContainingCharacter);
 
         Debug.Assert(_characters[(int)SwipeDirection.Center] != default);
-        
+
         static void PopulateIndexesContainingCharacter(ICollection<int> indexesContainingCharacter, char[] characters)
         {
             indexesContainingCharacter.Clear();
@@ -83,7 +87,7 @@ public class Key
     internal bool Contains(char c, out SwipeDirection direction)
     {
         Debug.Assert((int)SwipeDirection.None == -1);
-        
+
         var index = _characters.AsSpan().IndexOf(c);
         direction = (SwipeDirection)index;
         return index != -1;
@@ -92,12 +96,12 @@ public class Key
     internal static void SwapRandomCharacterFromEach(Key key1, Key key2, Random random)
     {
         Debug.Assert(key1.GetValidCharacterCount() > 0 && key2.GetValidCharacterCount() > 0);
-        
+
         char char1, char2;
         int index1, index2;
         const int centerKeyIndex = (int)SwipeDirection.Center;
         var shouldLoop = true;
-        
+
         do
         {
             index1 = random.Next(0, MaxCharacterCount);
@@ -119,8 +123,7 @@ public class Key
             }
 
             shouldLoop = char1 == char2;
-
-        } while (shouldLoop); 
+        } while (shouldLoop);
         // loop if both are `default` or if the implementation changes and both characters can be identical
 
         key1._characters[index1] = char2;
@@ -139,7 +142,7 @@ public class Key
         return count;
     }
 
-   
+
     public char[] GetAllCharacters() => _characters.ToArray();
 
     public char this[SwipeDirection direction] => _characters[(int)direction];
