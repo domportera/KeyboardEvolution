@@ -10,7 +10,7 @@ namespace ThumbKey;
 public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 {
     public Key[,] Traits { get; private set; }
-    Dictionary<char, InputPositionInfo> _charPositionDict;
+    FrozenDictionary<char, InputPositionInfo> _charPositionDict;
 
     record struct InputPositionInfo
     {
@@ -108,7 +108,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     public Key this[Vector2Int index] => GetKey(index.X, index.Y);
 
     static void DistributeRandomKeyboardLayout(Key[,] keys, char[] characterSet, Random random,
-        out Dictionary<char, InputPositionInfo> charPositionDict)
+        out FrozenDictionary<char, InputPositionInfo> charPositionDict)
     {
         Vector2Int layoutDimensions = (keys.GetLength(1), keys.GetLength(1));
         int index = 0;
@@ -161,7 +161,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         charPositionDict = GenerateCharacterPositionDictionary(keys);
     }
 
-    static Dictionary<char, InputPositionInfo> GenerateCharacterPositionDictionary(Key[,] keys)
+    static FrozenDictionary<char, InputPositionInfo> GenerateCharacterPositionDictionary(Key[,] keys)
     {
         var dict = new Dictionary<char, InputPositionInfo>();
         for (int y = 0; y < keys.GetLength(0); y++)
@@ -177,7 +177,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             }
         }
 
-        return dict;
+        return dict.ToFrozenDictionary();
     }
 
     public void ResetFitness() => Fitness = 0;
@@ -406,13 +406,11 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         }
     }
 
-    // todo: unit test?
-    // todo: can do these Range calculations in constructor
     static Thumb GetWhichThumb(in InputAction previousTypedKey, int xPosition, in Vector2Int keyboardDimensions)
     {
         Debug.Assert(xPosition >= 0);
 
-        int threshold = (int)Math.Ceiling(keyboardDimensions.X / 2f);
+        int threshold = (int)Math.Ceiling(keyboardDimensions.X * 0.5f);
         Debug.Assert(threshold > 0 && threshold <= keyboardDimensions.X);
 
         if (xPosition == threshold)
