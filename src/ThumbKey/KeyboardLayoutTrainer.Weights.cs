@@ -8,8 +8,8 @@ public partial class KeyboardLayoutTrainer
     const string CharacterSet = "abcdefghijklmnopqrstuvwxyz,.;*-_!?@$%&():'\"";
     const bool UseStandardSpaceBar = true;
     static readonly Vector2Int Dimensions = new(3, 3);
-    const double ReproductionPercentage = 0.4;
-    const double MutationFactor = 0.1;
+    const double ReproductionPercentage = 0.1;
+    const double MutationFactor = 0.0;
     
     static readonly Dictionary<Vector2Int, double[,]> PositionPreferences = new()
     {

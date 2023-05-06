@@ -10,6 +10,21 @@ namespace ThumbKey;
 public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 {
     public Key[,] Traits { get; private set; }
+    Dictionary<char, InputPositionInfo> _charPositionDict;
+
+    record struct InputPositionInfo
+    {
+        public InputPositionInfo(int column, int row, SwipeDirection swipeDirection)
+        {
+            Column = column;
+            Row = row;
+            SwipeDirection = swipeDirection;
+        }
+
+        internal int Column { get; }
+        internal int Row { get; }
+        internal SwipeDirection SwipeDirection { get; }
+    }
 
     public Vector2Int Dimensions { get; }
 
@@ -60,14 +75,15 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
         Traits = new Key[dimensions.Y, dimensions.X];
         Dimensions = dimensions;
-        
+
         Debug.Assert((int)Thumb.Left == 0 && (int)Thumb.Right == 1);
         _previousInputs[(int)Thumb.Left] = new(0, dimensions.Y / 2, SwipeDirection.Center, Thumb.Left);
         _previousInputs[(int)Thumb.Right] = new(dimensions.X - 1, dimensions.Y / 2, SwipeDirection.Center, Thumb.Right);
-        _previousInputAction = _previousInputs[(int)Thumb.Right]; // default key - assumes user opens text field with right thumb
+        _previousInputAction =
+            _previousInputs[(int)Thumb.Right]; // default key - assumes user opens text field with right thumb
 
         _maxDistancePossible = Vector2.Distance(Vector2.One, dimensions);
-        DistributeRandomKeyboardLayout(Traits, allCharacters, random);
+        DistributeRandomKeyboardLayout(Traits, allCharacters, random, out _charPositionDict);
     }
 
     static readonly FrozenDictionary<SwipeDirection, double> SwipeAngles = new Dictionary<SwipeDirection, double>()
@@ -91,7 +107,8 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     public Key GetKey(Vector2Int position) => GetKey(position.X, position.Y);
     public Key this[Vector2Int index] => GetKey(index.X, index.Y);
 
-    static void DistributeRandomKeyboardLayout(Key[,] keys, char[] characterSet, Random random)
+    static void DistributeRandomKeyboardLayout(Key[,] keys, char[] characterSet, Random random,
+        out Dictionary<char, InputPositionInfo> charPositionDict)
     {
         Vector2Int layoutDimensions = (keys.GetLength(1), keys.GetLength(1));
         int index = 0;
@@ -140,6 +157,27 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 }
             } while (!allCharactersWillHaveLetters);
         }
+
+        charPositionDict = GenerateCharacterPositionDictionary(keys);
+    }
+
+    static Dictionary<char, InputPositionInfo> GenerateCharacterPositionDictionary(Key[,] keys)
+    {
+        var dict = new Dictionary<char, InputPositionInfo>();
+        for (int y = 0; y < keys.GetLength(0); y++)
+        for (int x = 0; x < keys.GetLength(1); x++)
+        {
+            var key = keys[y, x];
+            for (int i = 0; i < Key.MaxCharacterCount; i++)
+            {
+                if (key[i] == default)
+                    continue;
+
+                dict.Add(key[i], new InputPositionInfo(x, y, (SwipeDirection)i));
+            }
+        }
+
+        return dict;
     }
 
     public void ResetFitness() => Fitness = 0;
@@ -158,7 +196,8 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                     ? _previousInputs[(int)Thumb.Right]
                     : _previousInputs[(int)Thumb.Left];
 
-                Fitness += CalculateTravelScoreStandardSpaceBar(in previousInputActionOfThisThumb,
+                Fitness += CalculateTravelScoreStandardSpaceBar(
+                    in previousInputActionOfThisThumb,
                     out InputAction spaceKeyAction,
                     _maxDistancePossibleStandardSpacebar);
                 _previousInputAction = spaceKeyAction;
@@ -172,20 +211,10 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             if (!KeyboardLayoutTrainer.CharacterSetDict.Contains(c))
                 continue;
 
-            InputAction currentInput = default;
-
-            // todo: is there a better way to search?
-            for (var column = 0; column < Dimensions.X; column++)
-            for (var row = 0; row < Dimensions.Y; row++)
-            {
-                Key key = Traits[row, column];
-                var contains = key.Contains(c, out var foundDirection);
-                if (!contains) continue;
-
-                var thumb = GetWhichThumb(in _previousInputAction, column, Dimensions);
-                currentInput = new InputAction(column, row, foundDirection, thumb);
-                break;
-            }
+            var inputPositionInfo = _charPositionDict[c];
+            var thumb = GetWhichThumb(in _previousInputAction, inputPositionInfo.Column, Dimensions);
+            InputAction currentInput = new(inputPositionInfo.Column, inputPositionInfo.Row,
+                inputPositionInfo.SwipeDirection, thumb);
 
             int fingerIndex = (int)currentInput.Thumb;
             var previousTypedByThisThumb = _previousInputs[fingerIndex];
@@ -263,6 +292,8 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             for (int i = 0; i < quantityPerSwap; i++)
                 Key.SwapRandomCharacterFromEach(allKeys[0], allKeys[^1], _random);
         }
+
+        _charPositionDict = GenerateCharacterPositionDictionary(Traits);
     }
 
     public void Kill()
@@ -275,6 +306,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     {
         bool sameKey = previousInput.KeyPosition == currentTypedKey.KeyPosition;
         bool sameKeyAndSwipe = sameKey && previousInput.SwipeDirection == currentTypedKey.SwipeDirection;
+        double swipeDirectionPreference01 = _swipeDirectionPreferences[currentTypedKey.SwipeDirection];
 
         if (sameKeyAndSwipe)
         {
@@ -292,7 +324,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 handAlternation01: 1, // not technically hand alternation, but there's no reason to penalize double-letters
                 handCollisionAvoidance01: 1,
                 positionalPreference01: GetPreferredPositionScore(currentTypedKey.KeyPosition),
-                swipeDirectionPreference01: _swipeDirectionPreferences[currentTypedKey.SwipeDirection]
+                swipeDirectionPreference01: swipeDirectionPreference01
             );
         }
 
@@ -321,7 +353,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 : 0, // not technically hand alternation, but there's no reason to penalize double-letters
             handCollisionAvoidance01: previousInput.KeyPosition.X == currentTypedKey.KeyPosition.X ? 0 : 1,
             positionalPreference01: GetPreferredPositionScore(currentTypedKey.KeyPosition),
-            swipeDirectionPreference01: _swipeDirectionPreferences[currentTypedKey.SwipeDirection]
+            swipeDirectionPreference01: swipeDirectionPreference01
         );
     }
 
@@ -368,8 +400,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
         Vector2 GetSpaceBarPressPosition(in Vector2Int previousThumbPosition)
         {
-            var x = (previousThumbPosition.X + Dimensions.X / 2f) /
-                    2f; // closer to center - avg of center + prev position
+            var x = (previousThumbPosition.X + Dimensions.X * 0.5f) * 0.5f; // closer to center - avg of center + prev position
             var y = Dimensions.Y; // below other keys
             return new Vector2(x, y);
         }
@@ -381,30 +412,21 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     {
         Debug.Assert(xPosition >= 0);
 
-        var leftMax = (int)Math.Floor(keyboardDimensions.X / 2f);
-        var rightMin = (int)Math.Ceiling(keyboardDimensions.X / 2f);
+        int threshold = (int)Math.Ceiling(keyboardDimensions.X / 2f);
+        Debug.Assert(threshold > 0 && threshold <= keyboardDimensions.X);
 
-        Debug.Assert(rightMin - leftMax <= 1); // ensure there are no gaps in between
-
-        Range leftRange = new(min: 0, max: leftMax);
-        Range rightRange = new(min: leftRange.Max, max: rightMin);
-
-        bool leftContains = leftRange.Contains(xPosition);
-        bool rightContains = rightRange.Contains(xPosition);
-
-        Thumb thumb = leftContains && rightContains
-            ? OppositeThumb(previousTypedKey.Thumb)
-            : leftContains
-                ? Thumb.Left
-                : Thumb.Right;
-
-        return thumb;
-
-        static Thumb OppositeThumb(Thumb thumb) =>
-            thumb == Thumb.Left
-                ? Thumb.Right
-                : Thumb.Left;
+        if (xPosition == threshold)
+        {
+            // Middle position - use opposite thumb of the previous input
+            return previousTypedKey.Thumb == Thumb.Left ? Thumb.Right : Thumb.Left;
+        }
+        else
+        {
+            // Use left thumb if xPosition is less than the threshold, otherwise use right thumb
+            return xPosition < threshold ? Thumb.Left : Thumb.Right;
+        }
     }
+
 
     readonly struct Range
     {

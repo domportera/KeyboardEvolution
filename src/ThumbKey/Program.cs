@@ -11,4 +11,10 @@ foreach (var arg in args)
 
 const string path = @"C:\Users\Dom\Downloads\reddit_casual.json";
 const string tag = "text";
-var thumbKey = new KeyboardLayoutTrainer(path, tag, 100,1000, 10000, DateTime.UtcNow.Second);
+
+Console.WriteLine($"Reading file at {path}");
+var input = File.ReadAllText(path);
+Console.WriteLine($"Parsing input for tag \"{tag}\"...");
+RedditDataReader.GetAllStringsOfTag(input, tag, 1000, out var ranges);
+
+var thumbKey = new KeyboardLayoutTrainer(input, ranges, 1000, 10000, 0, DateTime.UtcNow.Second);

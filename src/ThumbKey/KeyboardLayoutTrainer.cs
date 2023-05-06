@@ -14,7 +14,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
     // todo: all punctuation in alphabet?
     public static readonly FrozenSet<char> CharacterSetDict = CharacterSet.ToFrozenSet();
 
-    public KeyboardLayoutTrainer(string textPath, string tag, int count, int iterationCount, int entriesPerIteration,
+    public KeyboardLayoutTrainer(string inputText, List<Range> ranges, int count, int generationCount, int entriesPerGeneration,
         int seed)
     {
         double[,] positionPreferences = PositionPreferences[Dimensions];
@@ -25,13 +25,11 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             layouts[i] = new KeyboardLayout(Dimensions, CharacterSet, seed + i, UseStandardSpaceBar,
                 positionPreferences, in FitnessWeights, SwipeDirectionPreferences);
         }
-
-        Console.WriteLine($"Reading file at {textPath}");
-        var input = File.ReadAllText(textPath);
-        EvolutionLoop(iterationCount, entriesPerIteration, input, tag, layouts);
+        entriesPerGeneration = entriesPerGeneration <= 0 ? ranges.Count : entriesPerGeneration;
+        EvolutionLoop(generationCount, entriesPerGeneration, inputText, ranges, layouts);
     }
 
-    void EvolutionLoop(int iterationCount, int entriesPerIteration, string input, string tag, KeyboardLayout[] layouts)
+    static void EvolutionLoop(int generationCount, int entriesPerGeneration, string input, List<Range> ranges, KeyboardLayout[] layouts)
     {
         LayoutVisualizer[] visualizers = layouts.AsParallel().Select(x => new LayoutVisualizer(x)).ToArray();
 
@@ -39,8 +37,6 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         var inputSpan = input.AsSpan();
 
         Stopwatch stopwatch = new();
-        Console.WriteLine($"Parsing input for tag \"{tag}\"...");
-        RedditDataReader.GetAllStringsOfTag(inputSpan, tag, 1000, out var ranges);
 
         var inputInfo = new TextRange(input, default);
 
@@ -48,8 +44,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             layout.SetStimulus(inputInfo);
 
         int whichRange = 0;
-        entriesPerIteration = entriesPerIteration <= 0 ? ranges.Count : entriesPerIteration;
-        for (int i = 0; i < iterationCount; i++)
+        for (int i = 0; i < generationCount; i++)
         {
             if (i % 10 == 0)
             {
@@ -63,7 +58,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
 
             Console.WriteLine($"Generation {i + 1}...");
             stopwatch.Start();
-            for (int j = 0; j < entriesPerIteration; j++)
+            for (int j = 0; j < entriesPerGeneration; j++)
             {
                 whichRange++;
                 if (whichRange >= ranges.Count)
@@ -74,7 +69,9 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             }
 
             stopwatch.Stop();
-            Console.WriteLine($"Took {stopwatch.ElapsedMilliseconds}ms to process {entriesPerIteration} entries");
+            Console.WriteLine(
+                $"Took {stopwatch.ElapsedMilliseconds}ms to process {entriesPerGeneration} entries for {layouts.Length} layouts\n" +
+                $"{stopwatch.ElapsedMilliseconds / (double)layouts.Length}ms per layout for {entriesPerGeneration * layouts.Length} calculations total\n");
             stopwatch.Reset();
 
             PrintAverageFitness();
@@ -107,6 +104,11 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         Debug.Assert(ReproductionPercentage <= 0.5);
 
         double childrenPerCouple = quantityToReplace / (double)quantityToReproduce;
+        
+        double averageFitnessReproductivePopulation = layouts[0..quantityToReproduce].Average(x => x.Fitness);
+        double averageFitnessNonReproductivePopulation = layouts[quantityToReproduce..].Average(x => x.Fitness);
+        Console.WriteLine($"Average fitness of reproductive population: {averageFitnessReproductivePopulation}");
+        Console.WriteLine($"Average fitness of non-reproductive population: {averageFitnessNonReproductivePopulation}");
 
         for (int i = 0; i < quantityToReproduce; i++)
         {
