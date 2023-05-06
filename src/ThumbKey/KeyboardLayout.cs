@@ -57,14 +57,15 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             _maxDistancePossibleStandardSpacebar = Vector2.Distance(Vector2.Zero, dimensions + (0, 1));
         }
 
-        Debug.Assert((int)Thumb.Left == 0 && (int)Thumb.Right == 1);
-        _previousInputs[(int)Thumb.Left] = new(0, Dimensions.Y / 2, SwipeDirection.Center, Thumb.Left);
-        _previousInputs[(int)Thumb.Right] = new(Dimensions.X - 1, Dimensions.Y / 2, SwipeDirection.Center, Thumb.Right);
-        _previousInputAction =
-            _previousInputs[(int)Thumb.Right]; // default key - assumes user opens text field with right thumb
 
         Traits = new Key[dimensions.Y, dimensions.X];
         Dimensions = dimensions;
+        
+        Debug.Assert((int)Thumb.Left == 0 && (int)Thumb.Right == 1);
+        _previousInputs[(int)Thumb.Left] = new(0, dimensions.Y / 2, SwipeDirection.Center, Thumb.Left);
+        _previousInputs[(int)Thumb.Right] = new(dimensions.X - 1, dimensions.Y / 2, SwipeDirection.Center, Thumb.Right);
+        _previousInputAction = _previousInputs[(int)Thumb.Right]; // default key - assumes user opens text field with right thumb
+
         _maxDistancePossible = Vector2.Distance(Vector2.One, dimensions);
         DistributeRandomKeyboardLayout(Traits, allCharacters, random);
     }
@@ -185,8 +186,6 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 currentInput = new InputAction(column, row, foundDirection, thumb);
                 break;
             }
-
-            Debug.Assert(currentInput != default);
 
             int fingerIndex = (int)currentInput.Thumb;
             var previousTypedByThisThumb = _previousInputs[fingerIndex];
