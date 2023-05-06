@@ -92,21 +92,31 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     static void DistributeRandomKeyboardLayout(Key[,] keys, char[] characterSet, Random random)
     {
-        Vector2Int keyDimensions = (keys.GetLength(1), keys.GetLength(1));
+        Vector2Int layoutDimensions = (keys.GetLength(1), keys.GetLength(1));
         int index = 0;
         int charactersPerKey = characterSet.Length / keys.Length;
 
         EnsureAllKeysWillHaveALetter();
 
         ReadOnlySpan<char> characterSpan = characterSet.AsSpan();
-        for (int y = 0; y < keyDimensions.Y; y++)
-        for (int x = 0; x < keyDimensions.X; x++)
+        for (int y = 0; y < layoutDimensions.Y; y++)
+        for (int x = 0; x < layoutDimensions.X; x++)
         {
             var lastIndex = Math.Clamp(index + charactersPerKey, 0, characterSet.Length - 1);
             var thisKeysCharacters = characterSpan.Slice(index, lastIndex - index);
             keys[y, x] = new Key(thisKeysCharacters, random);
             index = lastIndex;
         }
+
+        var remainingKeys = characterSet.Length - charactersPerKey * keys.Length;
+        for (int i = 0; i < remainingKeys; i++)
+        {
+            var key = keys[random.Next(layoutDimensions.Y), random.Next(layoutDimensions.X)];
+            bool added = key.TryAddCharacter(characterSet[index + i], random);
+            if (!added) i--;
+        }
+
+        Debug.Assert(index + remainingKeys == characterSet.Length);
 
         void EnsureAllKeysWillHaveALetter()
         {
@@ -115,7 +125,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             {
                 random.Shuffle(characterSet);
                 allCharactersWillHaveLetters = true;
-                for (int i = 0; i < characterSet.Length - charactersPerKey; i++)
+                for (int i = 0; i < characterSet.Length - charactersPerKey; i += charactersPerKey)
                 {
                     var hasLetters = false;
                     for (int j = 0; j < charactersPerKey; j++)

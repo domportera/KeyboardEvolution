@@ -149,4 +149,21 @@ public class Key
     public char this[int position] => _characters[position];
     public int Length => _characters.Length;
     public readonly Vector2Int Dimensions;
+
+    public bool TryAddCharacter(char character, Random random)
+    {
+        List<int> freeIndices = new(MaxCharacterCount);
+        for (int i = 0; i < _characters.Length; i++)
+        {
+            if (_characters[i] == default)
+                freeIndices.Add(i);
+        }
+
+        if (freeIndices.Count == 0)
+            return false;
+        
+        int randomIndex = random.Next(0, freeIndices.Count); 
+        _characters[freeIndices[randomIndex]] = character;
+        return true;
+    }
 }
