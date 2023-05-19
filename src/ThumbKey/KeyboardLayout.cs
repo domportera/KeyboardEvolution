@@ -9,21 +9,23 @@ namespace ThumbKey;
 
 public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 {
-    public Key[,] Traits { get; private set; }
+    public Key[,] Traits { get; }
     FrozenDictionary<char, InputPositionInfo> _charPositionDict;
 
     record struct InputPositionInfo
     {
-        public InputPositionInfo(int column, int row, SwipeDirection swipeDirection)
+        public InputPositionInfo(int column, int row, SwipeDirection swipeDirection, Key key)
         {
             Column = column;
             Row = row;
             SwipeDirection = swipeDirection;
+            Key = key;
         }
 
         internal int Column { get; }
         internal int Row { get; }
         internal SwipeDirection SwipeDirection { get; }
+        internal Key Key { get; }
     }
 
     public Vector2Int Dimensions { get; }
@@ -37,29 +39,36 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     readonly Weights _fitnessWeights;
     readonly FrozenDictionary<SwipeDirection, double> _swipeDirectionPreferences;
-    Random _random;
+    readonly FrozenDictionary<SwipeDirection, double>[,] _keySpecificSwipeDirectionPreferences;
+    readonly Random _random;
     readonly InputAction[] _previousInputs = new InputAction[2];
 
     InputAction _previousInputAction;
 
+    readonly FrozenSet<char> _characterSet;
+    Dictionary<char, long> _characterFrequencies;
+
     // Coordinates are determined with (X = 0, Y = 0) being top-left
     public KeyboardLayout(
         Vector2Int dimensions,
-        string characterSet,
+        FrozenSet<char> characterSet,
         int seed,
         bool separateStandardSpaceBar,
         double[,] positionPreferences,
         in Weights weights,
-        FrozenDictionary<SwipeDirection, double> swipeDirectionPreferences)
+        double keySpecificSwipeDirectionWeight,
+        FrozenDictionary<SwipeDirection, double> swipeDirectionPreferences,
+        Key[,]? startingLayout)
     {
+        _characterSet = characterSet;
+        _characterFrequencies = new(CharacterFrequencies.Frequencies);
         _fitnessWeights = weights;
         _swipeDirectionPreferences = swipeDirectionPreferences;
         _positionPreferences = positionPreferences;
-        Debug.Assert(positionPreferences.GetLength(0) == dimensions.Y &&
-                     positionPreferences.GetLength(1) == dimensions.X);
         var random = new Random(seed);
         _random = random;
-        char[] allCharacters = characterSet.ToCharArray();
+
+        char[] allCharacters = characterSet.ToArray();
 
         _separateStandardSpaceBar = separateStandardSpaceBar;
         if (!separateStandardSpaceBar)
@@ -72,9 +81,10 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             _maxDistancePossibleStandardSpacebar = Vector2.Distance(Vector2.Zero, dimensions + (0, 1));
         }
 
-
         Traits = new Key[dimensions.Y, dimensions.X];
         Dimensions = dimensions;
+        _keySpecificSwipeDirectionPreferences =
+            GenerateKeySpecificSwipeDirections(keySpecificSwipeDirectionWeight, swipeDirectionPreferences);
 
         Debug.Assert((int)Thumb.Left == 0 && (int)Thumb.Right == 1);
         _previousInputs[(int)Thumb.Left] = new(0, dimensions.Y / 2, SwipeDirection.Center, Thumb.Left);
@@ -83,7 +93,21 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             _previousInputs[(int)Thumb.Right]; // default key - assumes user opens text field with right thumb
 
         _maxDistancePossible = Vector2.Distance(Vector2.One, dimensions);
-        DistributeRandomKeyboardLayout(Traits, allCharacters, random, out _charPositionDict);
+
+        if (startingLayout is not null)
+        {
+            for (int y = 0; y < dimensions.Y; y++)
+            for (int x = 0; x < dimensions.X; x++)
+            {
+                Traits[y, x] = new(startingLayout[y, x]);
+            }
+
+            _charPositionDict = GenerateCharacterPositionDictionary(Traits);
+        }
+        else
+        {
+            DistributeRandomKeyboardLayout(Traits, allCharacters, random, out _charPositionDict);
+        }
     }
 
     static readonly FrozenDictionary<SwipeDirection, double> SwipeAngles = new Dictionary<SwipeDirection, double>()
@@ -173,7 +197,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 if (key[i] == default)
                     continue;
 
-                dict.Add(key[i], new InputPositionInfo(x, y, (SwipeDirection)i));
+                dict.Add(key[i], new InputPositionInfo(x, y, (SwipeDirection)i, key));
             }
         }
 
@@ -208,8 +232,10 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             // bool isUpperCase = char.IsUpper(rawChar);
             char c = char.ToLowerInvariant(rawChar); // lowercase only - ignore case
 
-            if (!KeyboardLayoutTrainer.CharacterSetDict.Contains(c))
+            if (!_characterSet.Contains(c))
                 continue;
+
+            _characterFrequencies[c]++;
 
             var inputPositionInfo = _charPositionDict[c];
             var thumb = GetWhichThumb(in _previousInputAction, inputPositionInfo.Column, Dimensions);
@@ -293,7 +319,90 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 Key.SwapRandomCharacterFromEach(allKeys[0], allKeys[^1], _random);
         }
 
+        // iterate through keys 
+        for (int y = 0; y < Dimensions.Y; y++)
+        for (int x = 0; x < Dimensions.X; x++)
+        {
+            Traits[y, x].RedistributeKeysOptimally(_characterFrequencies, _keySpecificSwipeDirectionPreferences[y, x]);
+        }
+
         _charPositionDict = GenerateCharacterPositionDictionary(Traits);
+    }
+
+    FrozenDictionary<SwipeDirection, double>[,] GenerateKeySpecificSwipeDirections(double keysTowardsCenterWeight,
+        IReadOnlyDictionary<SwipeDirection, double> swipeDirectionPreferences)
+    {
+        var keySpecificSwipeDirections = new FrozenDictionary<SwipeDirection, double>[Dimensions.Y, Dimensions.X];
+        for (int y = 0; y < Dimensions.Y; y++)
+        {
+            for (int x = 0; x < Dimensions.X; x++)
+            {
+                // Identifying the keys position on the keyboard.
+                bool isLeftEdge = x == 0;
+                bool isRightEdge = x == Dimensions.X - 1;
+                bool isTopEdge = y == 0;
+                bool isBottomEdge = y == Dimensions.Y - 1;
+
+                // Initialize a new dictionary to store swipe preferences based on position.
+                var positionBasedSwipePreferences = new Dictionary<SwipeDirection, double>(swipeDirectionPreferences);
+
+                positionBasedSwipePreferences[SwipeDirection.Center] *= (1 + keysTowardsCenterWeight);
+
+                if (isLeftEdge && isTopEdge) // Top-left corner
+                {
+                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + keysTowardsCenterWeight);
+                }
+                else if (isRightEdge && isTopEdge) // Top-right corner
+                {
+                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + keysTowardsCenterWeight);
+                }
+                else if (isLeftEdge && isBottomEdge) // Bottom-left corner
+                {
+                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + keysTowardsCenterWeight);
+                }
+                else if (isRightEdge && isBottomEdge) // Bottom-right corner
+                {
+                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + keysTowardsCenterWeight);
+                }
+                else if (isLeftEdge) // Left edge
+                {
+                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + keysTowardsCenterWeight);
+                }
+                else if (isRightEdge) // Right edge
+                {
+                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + keysTowardsCenterWeight);
+                }
+                else if (isTopEdge) // Top edge
+                {
+                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + keysTowardsCenterWeight);
+                }
+                else if (isBottomEdge) // Bottom edge
+                {
+                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + keysTowardsCenterWeight);
+                }
+
+                keySpecificSwipeDirections[y, x] =
+                    positionBasedSwipePreferences.ToFrozenDictionary(x => x.Key, x => x.Value);
+            }
+        }
+
+        return keySpecificSwipeDirections;
     }
 
     public void Kill()
@@ -400,7 +509,8 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
         Vector2 GetSpaceBarPressPosition(in Vector2Int previousThumbPosition)
         {
-            var x = (previousThumbPosition.X + Dimensions.X * 0.5f) * 0.5f; // closer to center - avg of center + prev position
+            var x = (previousThumbPosition.X + Dimensions.X * 0.5f) *
+                    0.5f; // closer to center - avg of center + prev position
             var y = Dimensions.Y; // below other keys
             return new Vector2(x, y);
         }

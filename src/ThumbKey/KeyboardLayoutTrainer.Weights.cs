@@ -5,11 +5,12 @@ namespace ThumbKey;
 
 public partial class KeyboardLayoutTrainer
 {
-    const string CharacterSet = "abcdefghijklmnopqrstuvwxyz,.;*-_!?@$%&():'\"";
+    const string CharacterSetString = "abcdefghijklmnopqrstuvwxyz,.;*-_!?@$%&():'\"";
     const bool UseStandardSpaceBar = true;
     static readonly Vector2Int Dimensions = new(3, 3);
-    const double ReproductionPercentage = 0.1;
-    const double MutationFactor = 0.0;
+    const double ReproductionPercentage = 0.001;
+    const double MutationFactor = 0.3;
+    const double KeysTowardsCenterWeight = 0.1;
     
     static readonly Dictionary<Vector2Int, double[,]> PositionPreferences = new()
     {
@@ -45,9 +46,9 @@ public partial class KeyboardLayoutTrainer
 
     static readonly Weights FitnessWeights = new()
     {
-        Distance = 0.35,
-        Trajectory = 0.5,
-        HandAlternation = 1,
+        Distance = 0.5,
+        Trajectory = 0.3,
+        HandAlternation = 1.5,
         HandCollisionAvoidance = 0.2,
         PositionalPreference = 0.4,
         SwipeDirection = 1

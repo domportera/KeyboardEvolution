@@ -1,13 +1,15 @@
 using System.Diagnostics;
 using System.Text;
+using Core;
 using Core.Util;
 
 namespace ThumbKey;
 
 public class Key
 {
-    public const int MaxCharacterCount = 9;
+    public static readonly int MaxCharacterCount = Enum.GetValues<SwipeDirection>().Length - 1;
     readonly char[] _characters = new char[MaxCharacterCount];
+    readonly double[] _fitness = new double[MaxCharacterCount];
 
     internal Key(ReadOnlySpan<char> characters)
     {
@@ -33,6 +35,11 @@ public class Key
     Key(char[] characters)
     {
         _characters = characters;
+    }
+
+    public Key(Key keyToCopy)
+    {
+        _characters = keyToCopy._characters.ToArray();
     }
 
     public Key Duplicate() => new Key(_characters.ToArray());
@@ -83,13 +90,51 @@ public class Key
         _characters[centerIndex] = stolenCharacter;
     }
 
-    internal bool Contains(char c, out SwipeDirection direction)
+    readonly Dictionary<char, long> _frequenciesOfMyCharacters = new(MaxCharacterCount);
+    readonly List<(char, SwipeDirection)> _pairs = new();
+    internal void RedistributeKeysOptimally(IReadOnlyDictionary<char, long> characterAppearances, IReadOnlyDictionary<SwipeDirection, double> swipeDirectionPreferences)
     {
-        Debug.Assert((int)SwipeDirection.None == -1);
+        _frequenciesOfMyCharacters.Clear();
+        // redistribute keys so that the most common characters are in the center
+        // and that cardinal directions are filled by the characters in the corners
+        // and that the least common characters are in the corners if cardinals are filled
 
-        var index = _characters.AsSpan().IndexOf(c);
-        direction = (SwipeDirection)index;
-        return index != -1;
+        foreach (var c in _characters)
+        {
+            if (c == default) continue;
+            _frequenciesOfMyCharacters.Add(c, characterAppearances[c]);
+        }
+        
+        var charsSortedByFrequency = _frequenciesOfMyCharacters
+            .OrderByDescending(x => x.Value)
+            .Select(x => x.Key)
+            .ToArray();
+        
+        // pair up the most common characters with the most preferred swipe directions
+        // based on this keys position in the layout
+        
+        var swipeDirectionPreferencesSorted = swipeDirectionPreferences
+            .OrderByDescending(x => x.Value) // order by descending swipe preference
+            .Select(x => x.Key)
+            .ToArray();
+        
+        _pairs.Clear();
+        for (int i = 0; i < charsSortedByFrequency.Length; i++)
+        {
+            var character = charsSortedByFrequency[i];
+            var swipeDirection = swipeDirectionPreferencesSorted[i];
+            _pairs.Add((character, swipeDirection));
+        }
+        
+        // clear char array
+        Array.Clear(_characters, 0, _characters.Length);
+        
+        // assign chars to their new swipe directions
+        foreach (var (character, swipeDirection) in _pairs)
+        {
+            var index = (int)swipeDirection;
+            _characters[index] = character;
+        }
     }
 
     internal static void SwapRandomCharacterFromEach(Key key1, Key key2, Random random)
@@ -148,6 +193,8 @@ public class Key
     public char this[Vector2Int position] => _characters[position.X + position.X * position.Y + position.Y];
     public char this[int position] => _characters[position];
     public int Length => _characters.Length;
+    public IReadOnlyList<char> Characters => _characters;
+
     public readonly Vector2Int Dimensions;
 
     public bool TryAddCharacter(char character, Random random)
@@ -166,4 +213,6 @@ public class Key
         _characters[freeIndices[randomIndex]] = character;
         return true;
     }
+
+    public bool Contains(char c) => _characters.Contains(c);
 }

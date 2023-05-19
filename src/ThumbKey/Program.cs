@@ -1,5 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
+using System.Diagnostics;
 using ThumbKey;
 
 Console.WriteLine("Hello, World from ThumbKey!");
@@ -17,4 +18,8 @@ var input = File.ReadAllText(path);
 Console.WriteLine($"Parsing input for tag \"{tag}\"...");
 RedditDataReader.GetAllStringsOfTag(input, tag, 1000, out var ranges);
 
-var thumbKey = new KeyboardLayoutTrainer(input, ranges, 1000, 10000, 0, DateTime.UtcNow.Second);
+Debug.Assert(ranges != null && ranges.Count > 0);
+
+Key[,] preset = LayoutPresets.Instance[PresetType.ThumbKeyEngV4];
+// Key[,]? preset = null;
+var thumbKey = new KeyboardLayoutTrainer(input, ranges, 10000, 1000, 1000, DateTime.UtcNow.Second, 100, preset);
