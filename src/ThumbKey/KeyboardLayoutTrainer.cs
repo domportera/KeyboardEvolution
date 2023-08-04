@@ -15,9 +15,9 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
 
     public KeyboardLayoutTrainer(string inputText, List<Range> ranges, int count, int generationCount,
         int entriesPerGeneration,
-        int seed, int printEveryNGenerations, Key[,]? startingLayout)
+        int seed, Key[,]? startingLayout)
     {
-        double[,] positionPreferences = PositionPreferences[Dimensions];
+        float[,] positionPreferences = PositionPreferences[Dimensions];
 
         var layouts = new KeyboardLayout[count];
 
@@ -47,7 +47,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         }
 
         entriesPerGeneration = entriesPerGeneration <= 0 ? ranges.Count : entriesPerGeneration;
-        EvolutionLoop(generationCount, entriesPerGeneration, inputText, ranges, layouts, printEveryNGenerations);
+        EvolutionLoop(generationCount, entriesPerGeneration, inputText, ranges, layouts);
     }
 
     void AddAdditionalCharactersToCharacterSet(ref string charSetString, Key[,] startingLayout)
@@ -123,12 +123,12 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
     }
 
     static void EvolutionLoop(int generationCount, int entriesPerGeneration, string input, List<Range> ranges,
-        KeyboardLayout[] layouts, int printEveryNGenerations)
+        KeyboardLayout[] layouts)
     {
-        LayoutVisualizer[] visualizers = layouts.AsParallel().Select(x => new LayoutVisualizer(x)).ToArray();
+        var visualizers =
+            layouts.AsParallel().Select(x => new LayoutVisualizer(x)).ToFrozenDictionary(x => x.LayoutToVisualize);
 
-        visualizers.AsParallel().ForAll(visualizer => visualizer.Visualize());
-        var inputSpan = input.AsSpan();
+        //visualizers.AsParallel().ForAll(visualizer => visualizer.Visualize());
 
         Stopwatch stopwatch = new();
 
@@ -138,14 +138,9 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             layout.SetStimulus(inputInfo);
 
         int whichRange = 0;
+        List<KeyboardLayout> reproducers = new();
         for (int i = 0; i < generationCount; i++)
         {
-            if (i % printEveryNGenerations == printEveryNGenerations - 1)
-            {
-                Console.WriteLine("Printing visualizations...");
-                foreach (var visualizer in visualizers) visualizer.Visualize();
-            }
-
             // reset fitness
             foreach (var layout in layouts)
                 layout.ResetFitness();
@@ -171,11 +166,21 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             PrintAverageFitness();
             Console.WriteLine("Evolving...");
             //  evolve
-            EvolveLayouts(ref layouts);
+            EvolveLayouts(ref layouts, reproducers);
+
+            foreach (var reproducer in reproducers)
+            {
+                visualizers[reproducer].Visualize();
+            }
         }
 
         Console.WriteLine("<<<<<<<<<<<<<<<<<<<<<<<<< FINAL RESULTS >>>>>>>>>>>>>>>>>>>>>>>>>");
-        visualizers.AsParallel().ForAll(visualizer => visualizer.Visualize());
+        visualizers
+            .AsParallel()
+            .Select(x => x.Value)
+            .OrderBy(x => x.LayoutToVisualize.Fitness)
+            .ForAll(x => x.Visualize());
+        
         PrintAverageFitness();
 
         void PrintAverageFitness()
@@ -186,12 +191,14 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         }
     }
 
-    static void EvolveLayouts(ref KeyboardLayout[] layouts)
+    static void EvolveLayouts(ref KeyboardLayout[] layouts, List<KeyboardLayout> layoutsThatReproduced)
     {
-        layouts = layouts.AsParallel().OrderByDescending(layout => layout.Fitness).ToArray();
+        layoutsThatReproduced.Clear();
+        layouts = layouts.OrderByDescending(layout => layout.Fitness).ToArray();
 
         int quantityToReproduce = (int)Math.Floor(layouts.Length * ReproductionPercentage);
-        quantityToReproduce = quantityToReproduce % 2 == 0 ? quantityToReproduce : quantityToReproduce + 1;
+        if(quantityToReproduce == 0)
+            quantityToReproduce = 1;
 
         int quantityToReplace = layouts.Length - quantityToReproduce;
 
@@ -223,6 +230,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
                 .AsSpan()
                 .Slice(childStartIndex, childCount);
 
+            layoutsThatReproduced.Add(parent);
             Reproduce(parent, childrenToOverwrite);
         }
     }

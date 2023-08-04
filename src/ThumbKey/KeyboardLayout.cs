@@ -33,13 +33,13 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     public double Fitness { get; private set; }
 
     readonly bool _separateStandardSpaceBar;
-    readonly double _maxDistancePossible;
-    readonly double _maxDistancePossibleStandardSpacebar;
-    readonly double[,] _positionPreferences;
+    readonly float _maxDistancePossible;
+    readonly float _maxDistancePossibleStandardSpacebar;
+    readonly float[,] _positionPreferences;
 
     readonly Weights _fitnessWeights;
-    readonly FrozenDictionary<SwipeDirection, double> _swipeDirectionPreferences;
-    readonly FrozenDictionary<SwipeDirection, double>[,] _keySpecificSwipeDirectionPreferences;
+    readonly FrozenDictionary<SwipeDirection, float> _swipeDirectionPreferences;
+    readonly FrozenDictionary<SwipeDirection, float>[,] _keySpecificSwipeDirectionPreferences;
     readonly Random _random;
     readonly InputAction[] _previousInputs = new InputAction[2];
 
@@ -54,10 +54,10 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         FrozenSet<char> characterSet,
         int seed,
         bool separateStandardSpaceBar,
-        double[,] positionPreferences,
+        float[,] positionPreferences,
         in Weights weights,
-        double keySpecificSwipeDirectionWeight,
-        FrozenDictionary<SwipeDirection, double> swipeDirectionPreferences,
+        float keySpecificSwipeDirectionWeight,
+        FrozenDictionary<SwipeDirection, float> swipeDirectionPreferences,
         Key[,]? startingLayout)
     {
         _characterSet = characterSet;
@@ -110,16 +110,16 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         }
     }
 
-    static readonly FrozenDictionary<SwipeDirection, double> SwipeAngles = new Dictionary<SwipeDirection, double>()
+    static readonly FrozenDictionary<SwipeDirection, float> SwipeAngles = new Dictionary<SwipeDirection, float>()
     {
-        { SwipeDirection.Left, Math.PI },
-        { SwipeDirection.UpLeft, 3 * Math.PI / 4 },
-        { SwipeDirection.Up, Math.PI / 2 },
-        { SwipeDirection.UpRight, Math.PI / 4 },
+        { SwipeDirection.Left, (float)Math.PI },
+        { SwipeDirection.UpLeft, (float)(3 * Math.PI / 4) },
+        { SwipeDirection.Up, (float)(Math.PI / 2) },
+        { SwipeDirection.UpRight, (float)(Math.PI / 4) },
         { SwipeDirection.Right, 0 },
-        { SwipeDirection.DownRight, -Math.PI / 4 },
-        { SwipeDirection.Down, -Math.PI / 2 },
-        { SwipeDirection.DownLeft, -3 * Math.PI / 4 },
+        { SwipeDirection.DownRight, (float)(-Math.PI / 4) },
+        { SwipeDirection.Down, (float)(-Math.PI / 2) },
+        { SwipeDirection.DownLeft, (float)(-3 * Math.PI / 4) },
     }.ToFrozenDictionary();
 
 
@@ -329,10 +329,10 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         _charPositionDict = GenerateCharacterPositionDictionary(Traits);
     }
 
-    FrozenDictionary<SwipeDirection, double>[,] GenerateKeySpecificSwipeDirections(double keysTowardsCenterWeight,
-        IReadOnlyDictionary<SwipeDirection, double> swipeDirectionPreferences)
+    FrozenDictionary<SwipeDirection, float>[,] GenerateKeySpecificSwipeDirections(float keysTowardsCenterWeight,
+        IReadOnlyDictionary<SwipeDirection, float> swipeDirectionPreferences)
     {
-        var keySpecificSwipeDirections = new FrozenDictionary<SwipeDirection, double>[Dimensions.Y, Dimensions.X];
+        var keySpecificSwipeDirections = new FrozenDictionary<SwipeDirection, float>[Dimensions.Y, Dimensions.X];
         for (int y = 0; y < Dimensions.Y; y++)
         {
             for (int x = 0; x < Dimensions.X; x++)
@@ -344,7 +344,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 bool isBottomEdge = y == Dimensions.Y - 1;
 
                 // Initialize a new dictionary to store swipe preferences based on position.
-                var positionBasedSwipePreferences = new Dictionary<SwipeDirection, double>(swipeDirectionPreferences);
+                var positionBasedSwipePreferences = new Dictionary<SwipeDirection, float>(swipeDirectionPreferences);
 
                 positionBasedSwipePreferences[SwipeDirection.Center] *= (1 + keysTowardsCenterWeight);
 
@@ -411,11 +411,11 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     }
 
     double CalculateTravelScore(in InputAction currentTypedKey, in InputAction previousInputOfThumb,
-        in InputAction previousInput, double maxDistancePossible)
+        in InputAction previousInput, float maxDistancePossible)
     {
         bool sameKey = previousInput.KeyPosition == currentTypedKey.KeyPosition;
         bool sameKeyAndSwipe = sameKey && previousInput.SwipeDirection == currentTypedKey.SwipeDirection;
-        double swipeDirectionPreference01 = _swipeDirectionPreferences[currentTypedKey.SwipeDirection];
+        float swipeDirectionPreference01 = _swipeDirectionPreferences[currentTypedKey.SwipeDirection];
 
         if (sameKeyAndSwipe)
         {
@@ -423,11 +423,11 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 closeness01: 1,
                 trajectory01: currentTypedKey.SwipeDirection switch // repeated swipes on the same key are cumbersome
                 {
-                    SwipeDirection.Center => 1,
+                    SwipeDirection.Center => 1f,
                     SwipeDirection.Left
                         or SwipeDirection.Right
                         or SwipeDirection.Up
-                        or SwipeDirection.Down => 0.35,
+                        or SwipeDirection.Down => 0.35f,
                     _ => 0, // diagonals are the worst for this
                 },
                 handAlternation01: 1, // not technically hand alternation, but there's no reason to penalize double-letters
@@ -437,7 +437,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             );
         }
 
-        double trajectoryCorrectness = 1;
+        float trajectoryCorrectness = 1;
 
         if (previousInputOfThumb.SwipeDirection != SwipeDirection.Center)
         {
@@ -450,7 +450,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         }
 
         float distanceTraveled = Vector2.Distance(previousInputOfThumb.KeyPosition, currentTypedKey.KeyPosition);
-        double distanceEffectiveness = 1 - distanceTraveled / maxDistancePossible;
+        float distanceEffectiveness = 1f - distanceTraveled / maxDistancePossible;
 
         bool alternatingThumbs = previousInput.Thumb != currentTypedKey.Thumb;
 
@@ -466,16 +466,16 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         );
     }
 
-    double GetPreferredPositionScore(in Vector2Int position) => _positionPreferences[position.Y, position.X];
+    float GetPreferredPositionScore(in Vector2Int position) => _positionPreferences[position.Y, position.X];
 
     double CalculateTravelScoreStandardSpaceBar(in InputAction previousTypedKeyOfThumb, out InputAction spaceKeyAction,
-        double maxDistancePossible)
+        float maxDistancePossible)
     {
         Vector2 spaceBarPosition = GetSpaceBarPressPosition(in previousTypedKeyOfThumb.KeyPosition);
         Vector2 travel = spaceBarPosition - previousTypedKeyOfThumb.KeyPosition;
         SwipeDirection previousSwipeDirection = previousTypedKeyOfThumb.SwipeDirection;
 
-        double trajectoryCorrectness;
+        float trajectoryCorrectness;
         Debug.Assert(previousTypedKeyOfThumb.SwipeDirection != SwipeDirection.None);
         if (previousSwipeDirection == SwipeDirection.Center)
         {
@@ -490,7 +490,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
 
         float distanceTraveled = Math.Abs(spaceBarPosition.Y - previousTypedKeyOfThumb.KeyPosition.Y);
-        double distanceEffectiveness = 1 - distanceTraveled / maxDistancePossible;
+        float distanceEffectiveness = 1 - distanceTraveled / maxDistancePossible;
 
         spaceKeyAction = new InputAction(
             column: (int)Math.Round(spaceBarPosition.X),
@@ -503,7 +503,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             trajectory01: trajectoryCorrectness,
             handAlternation01: 1, // spacebar can always use opposite hand
             handCollisionAvoidance01: 1, // spacebar is wide enough to never worry about overlap
-            positionalPreference01: 0.5, // spacebar position is relatively standardized, todo: allow non-standard space position? 3x4 layout?
+            positionalPreference01: 0.5f, // spacebar position is relatively standardized, todo: allow non-standard space position? 3x4 layout?
             swipeDirectionPreference01: _swipeDirectionPreferences[spaceKeyAction.SwipeDirection]
         );
 

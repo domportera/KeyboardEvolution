@@ -22,4 +22,4 @@ Debug.Assert(ranges != null && ranges.Count > 0);
 
 Key[,] preset = LayoutPresets.Instance[PresetType.ThumbKeyEngV4];
 // Key[,]? preset = null;
-var thumbKey = new KeyboardLayoutTrainer(input, ranges, 10000, 1000, 1000, DateTime.UtcNow.Second, 100, preset);
+var thumbKey = new KeyboardLayoutTrainer(input, ranges, 1_000_000, 50, 1000, DateTime.UtcNow.Second, preset);

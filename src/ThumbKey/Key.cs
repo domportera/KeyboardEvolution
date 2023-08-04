@@ -92,7 +92,7 @@ public class Key
 
     readonly Dictionary<char, long> _frequenciesOfMyCharacters = new(MaxCharacterCount);
     readonly List<(char, SwipeDirection)> _pairs = new();
-    internal void RedistributeKeysOptimally(IReadOnlyDictionary<char, long> characterAppearances, IReadOnlyDictionary<SwipeDirection, double> swipeDirectionPreferences)
+    internal void RedistributeKeysOptimally(IReadOnlyDictionary<char, long> characterAppearances, IReadOnlyDictionary<SwipeDirection, float> swipeDirectionPreferences)
     {
         _frequenciesOfMyCharacters.Clear();
         // redistribute keys so that the most common characters are in the center

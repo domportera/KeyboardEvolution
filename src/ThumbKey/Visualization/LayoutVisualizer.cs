@@ -5,7 +5,7 @@ namespace ThumbKey.Visualization;
 
 public class LayoutVisualizer
 {
-    readonly KeyboardLayout _layoutToVisualize;
+    public readonly KeyboardLayout LayoutToVisualize;
     KeyVisualizer[,] _keyVisualizers;
 
     readonly Vector2Int _layoutDimensions;
@@ -21,8 +21,8 @@ public class LayoutVisualizer
     // todo: visualization back to key layout? could be a nice proof of concept for an intuitive layout editor
     public LayoutVisualizer(KeyboardLayout layoutToVisualize)
     {
-        _layoutToVisualize = layoutToVisualize;
-        Key[,] keys = _layoutToVisualize.Traits;
+        LayoutToVisualize = layoutToVisualize;
+        Key[,] keys = LayoutToVisualize.Traits;
 
         _layoutDimensions = layoutToVisualize.Dimensions;
 
@@ -59,7 +59,7 @@ public class LayoutVisualizer
 
         builder.Append(_header);
         builder.Append("Fitness: ");
-        builder.Append(_layoutToVisualize.Fitness);
+        builder.Append(LayoutToVisualize.Fitness);
         builder.Append('\n');
 
         for (int y = 0; y < _layoutDimensions.Y; y++)

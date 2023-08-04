@@ -4,39 +4,51 @@ namespace ThumbKey;
 
 public readonly record struct Weights
 {
-    public double Distance { get; init; }
-    public double Trajectory { get; init; }
-    public double HandAlternation { get; init; }
+    public readonly float Distance;
+    public readonly float Trajectory;
+    public readonly float HandAlternation;
 
     // for odd-numbered column counts where fingers share a column
-    public double HandCollisionAvoidance { get; init; } 
+    public readonly float HandCollisionAvoidance; 
 
     // for if a specific key position is preferred for ergonomic reasons
-    public double PositionalPreference { get; init; } 
-        
-    public double SwipeDirection { get; init; }
+    public readonly float PositionalPreference;
 
-    double TotalWeight => Distance + Trajectory + HandAlternation + HandCollisionAvoidance + PositionalPreference + SwipeDirection;
-    public double CalculateScore(double closeness01, double trajectory01, double handAlternation01,
-        double handCollisionAvoidance01, double positionalPreference01, double swipeDirectionPreference01)
+    public readonly float SwipeDirection;
+
+    readonly float _totalWeightDivider;
+
+    public Weights(float distance, float trajectory, float handAlternation, float handCollisionAvoidance, float positionalPreference, float swipeDirection)
     {
-        Debug.Assert(closeness01 is >= 0 and <= 1);
-        Debug.Assert(trajectory01 is >= 0 and <= 1);
-        Debug.Assert(handAlternation01 is >= 0 and <= 1);
-        Debug.Assert(handCollisionAvoidance01 is >= 0 and <= 1);
-        Debug.Assert(positionalPreference01 is >= 0 and <= 1);
-        Debug.Assert(swipeDirectionPreference01 is >= 0 and <= 1);
+        Distance = distance;
+        Trajectory = trajectory;
+        HandAlternation = handAlternation;
+        HandCollisionAvoidance = handCollisionAvoidance;
+        PositionalPreference = positionalPreference;
+        SwipeDirection = swipeDirection;
+        _totalWeightDivider = 1f/(Distance + Trajectory + HandAlternation + HandCollisionAvoidance + PositionalPreference + SwipeDirection);
+    }
+    
+    public float CalculateScore(float closeness01, float trajectory01, float handAlternation01,
+        float handCollisionAvoidance01, float positionalPreference01, float swipeDirectionPreference01)
+    {
+        //Debug.Assert(closeness01 is >= 0 and <= 1);
+        //Debug.Assert(trajectory01 is >= 0 and <= 1);
+        //Debug.Assert(handAlternation01 is >= 0 and <= 1);
+        //Debug.Assert(handCollisionAvoidance01 is >= 0 and <= 1);
+        //Debug.Assert(positionalPreference01 is >= 0 and <= 1);
+        //Debug.Assert(swipeDirectionPreference01 is >= 0 and <= 1);
 
         var score =  (closeness01 * Distance +
                       trajectory01 * Trajectory +
                       handAlternation01 * HandAlternation +
                       handCollisionAvoidance01 * HandCollisionAvoidance +
                       positionalPreference01 * PositionalPreference +
-                      swipeDirectionPreference01 * SwipeDirection) / TotalWeight; 
+                      swipeDirectionPreference01 * SwipeDirection) * _totalWeightDivider; 
         // divides by total weight for normalization 0-1. optional, but more readable output
         // for character-by-character analysis
             
-        Debug.Assert(score is >= 0 and <= 1);
+        //Debug.Assert(score is >= 0 and <= 1);
         return score;
     }
 }
