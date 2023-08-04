@@ -49,7 +49,7 @@ public partial class KeyboardLayoutTrainer
         trajectory: 0.3f,
         handAlternation: 2f,
         handCollisionAvoidance: 0.2f,
-        positionalPreference: 0.0f,
+        positionalPreference: 0.1f,
         swipeDirection: 1f
     );
 

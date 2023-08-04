@@ -2,7 +2,7 @@ namespace ThumbKey;
 
 public class CharacterFrequencies
 {
-    const long PrecalculatedFrequencyStrength = 1000;
+    const long PrecalculatedFrequencyStrength = 100000;
 
     // initialize CharacterFrequencies dictionary with english-language character frequencies
     // https://en.wikipedia.org/wiki/Letter_frequency

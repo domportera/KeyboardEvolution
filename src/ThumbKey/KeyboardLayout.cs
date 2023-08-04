@@ -46,7 +46,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     InputAction _previousInputAction;
 
     readonly FrozenSet<char> _characterSet;
-    Dictionary<char, long> _characterFrequencies;
+    readonly Dictionary<char, long> _characterFrequencies;
 
     // Coordinates are determined with (X = 0, Y = 0) being top-left
     public KeyboardLayout(

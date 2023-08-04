@@ -1,6 +1,5 @@
+using System.Collections.Frozen;
 using System.Diagnostics;
-using System.Text;
-using Core;
 using Core.Util;
 
 namespace ThumbKey;
@@ -29,7 +28,7 @@ public class Key
 
         Dimensions = new((int)side, (int)side);
 
-        RandomlyDistributeCharacters(characters, random);
+        RandomlyDistributeCharacters(characters, CharacterFrequencies.Frequencies, random);
     }
 
     Key(char[] characters)
@@ -49,7 +48,8 @@ public class Key
         other._characters.CopyTo(_characters.AsSpan());
     }
     
-    void RandomlyDistributeCharacters(ReadOnlySpan<char> characters, Random random)
+    void RandomlyDistributeCharacters(ReadOnlySpan<char> characters, IReadOnlyDictionary<char, long> characterFrequencies,
+        Random random)
     {
         Debug.Assert(characters.Length <= _characters.Length);
         Debug.Assert(characters.Length > 0);
@@ -63,7 +63,7 @@ public class Key
         random.Shuffle(_characters);
         List<int> indexesContainingCharacter = new(MaxCharacterCount);
         PopulateIndexesContainingCharacter(indexesContainingCharacter, _characters);
-        EnsureCenterHasCharacter(random, indexesContainingCharacter);
+        EnsureCenterHasCharacter(indexesContainingCharacter, characterFrequencies);
 
         Debug.Assert(_characters[(int)SwipeDirection.Center] != default);
 
@@ -78,16 +78,31 @@ public class Key
         }
     }
 
-    void EnsureCenterHasCharacter(Random random, IList<int> indexesContainingCharacter)
+    void EnsureCenterHasCharacter(IList<int> indexesContainingCharacter,
+        IReadOnlyDictionary<char, long> characterFrequencies)
     {
         const int centerIndex = (int)SwipeDirection.Center;
-        if (char.IsLetter(_characters[centerIndex])) return;
 
-        int indexWithCharacter = indexesContainingCharacter.First(x => char.IsLetter(_characters[x]));
-        char stolenCharacter = _characters[indexWithCharacter];
+        char mostCommonCharacter = default;
+        int mostCommonCharacterIndex = -1;
+        long highestFrequency = -1;
+        
+        for(int i = 0; i < indexesContainingCharacter.Count; i++)
+        {
+            var index = indexesContainingCharacter[i];
+            var character = _characters[index];
+            var frequency = characterFrequencies.TryGetValue(character, out var freq) ? freq : 0;
+            if (frequency > highestFrequency)
+            {
+                highestFrequency = frequency;
+                mostCommonCharacter = character;
+                mostCommonCharacterIndex = index;
+            }
+        }
+
         char originalCharacter = _characters[centerIndex]; 
-        _characters[indexWithCharacter] = originalCharacter;
-        _characters[centerIndex] = stolenCharacter;
+        _characters[mostCommonCharacterIndex] = originalCharacter;
+        _characters[centerIndex] = mostCommonCharacter;
     }
 
     readonly Dictionary<char, long> _frequenciesOfMyCharacters = new(MaxCharacterCount);
