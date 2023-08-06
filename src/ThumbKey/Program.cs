@@ -14,12 +14,20 @@ const string path = @"C:\Users\Dom\Downloads\reddit_casual.json";
 const string tag = "text";
 
 Console.WriteLine($"Reading file at {path}");
-var input = File.ReadAllText(path);
+var text = File.ReadAllText(path);
 Console.WriteLine($"Parsing input for tag \"{tag}\"...");
-RedditDataReader.GetAllStringsOfTag(input, tag, 1000, out var ranges);
+var ranges = RedditDataReader.GetAllStringsOfTag(text, tag);
 
 Debug.Assert(ranges != null && ranges.Count > 0);
 
 Key[,] preset = LayoutPresets.Instance[PresetType.ThumbKeyEngV4];
-// Key[,]? preset = null;
-var thumbKey = new KeyboardLayoutTrainer(input, ranges, 1_000_000, 50, 1000, DateTime.UtcNow.Second, preset);
+
+Console.WriteLine("Generating layouts");
+var thumbKey = new KeyboardLayoutTrainer(text, ranges, 
+    count: 1_000_000, 
+    generationCount: 300, 
+    entriesPerGeneration: 1000, 
+    seed: DateTime.UtcNow.Second, 
+    preset);
+    
+    

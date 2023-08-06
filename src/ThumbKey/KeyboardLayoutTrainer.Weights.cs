@@ -8,9 +8,9 @@ public partial class KeyboardLayoutTrainer
     const string CharacterSetString = "abcdefghijklmnopqrstuvwxyz,.;*-_!?@$%&():'\"";
     const bool UseStandardSpaceBar = true;
     static readonly Vector2Int Dimensions = new(3, 3);
-    const double ReproductionPercentage = 0.000001;
+    const double ReproductionRatio = 0.01;
     const float MutationFactor = 0.1f;
-    const float KeysTowardsCenterWeight = 0.1f;
+    const float KeysTowardsCenterWeight = 0.1f; //prefer swiping towards the center of the keyboard
     
     static readonly Dictionary<Vector2Int, float[,]> PositionPreferences = new()
     {

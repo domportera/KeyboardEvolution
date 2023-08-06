@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Core.Util;
 
 namespace ThumbKey;
@@ -12,39 +13,54 @@ public static class RedditDataReader
     /// <summary>
     /// Returns info to generate a span
     /// </summary>
-    /// <param name="inputSpan"></param>
+    /// <param name="text"></param>
     /// <param name="tag"></param>
     /// <param name="capacity"></param>
-    /// <param name="range"></param>
     /// <returns></returns>
     /// <exception cref="NotImplementedException"></exception>
-    public static void GetAllStringsOfTag(ReadOnlySpan<char> inputSpan, string tag, int capacity, out List<Range> range)
+    public static List<Range> GetAllStringsOfTag(string text, string tag)
     {
         Console.WriteLine("Parsing body text...");
-        string wholeTag = $"\"{tag}\":";
-        var tagSpan = wholeTag.AsSpan();
 
-        range = new List<Range>(capacity);
+        const int partitionQuantity = 100;
+        int partitionSize = text.Length / partitionQuantity;
 
-        
-        var startIndex = inputSpan.IndexOf(tagSpan);
+        var customPartitioner = Partitioner.Create(0, text.Length, partitionSize);
+        var rangeBag = new ConcurrentBag<Range>();
 
-        do
+        Parallel.ForEach(customPartitioner, (range, state) =>
         {
-            startIndex += tagSpan.Length;
-            inputSpan = inputSpan.Slice(startIndex);
-            
-            int length;
-            bool gotEnd;
+            string wholeTag = $"\"{tag}\":";
+            var input = text.AsSpan(range.Item1, range.Item2 - range.Item1);
+            var tagSpan = wholeTag.AsSpan();
+            int tagStart = input.IndexOf(tagSpan);
 
-            do
+            while (tagStart != -1)
             {
-                length = inputSpan.IndexOf('\"');
-                gotEnd = inputSpan[length - 1] != '\\';
-            } while (!gotEnd);
+                var start = tagStart + tagSpan.Length;
+                if (start >= input.Length)
+                    break;
+                input = input.Slice(start);
 
-            range.Add(new Range(startIndex, startIndex + length));
-            startIndex = inputSpan.IndexOf(tagSpan);
-        } while (startIndex != -1);
+                int length;
+                bool gotEnd;
+
+                do
+                {
+                    length = input.IndexOf('\"');
+                    if (length == -1)
+                        return;
+
+                    gotEnd = input[length - 1] != '\\';
+                } while (!gotEnd);
+
+                var rangeToAdd = new Range(range.Item1 + tagStart, range.Item1 + tagStart + length);
+                rangeBag.Add(rangeToAdd);
+
+                tagStart = input.IndexOf(tagSpan);
+            }
+        });
+
+        return rangeBag.ToList();
     }
 }

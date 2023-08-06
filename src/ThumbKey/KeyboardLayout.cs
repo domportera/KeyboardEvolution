@@ -30,7 +30,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     public Vector2Int Dimensions { get; }
 
-    public double Fitness { get; private set; }
+    public float Fitness { get; private set;  }
 
     readonly bool _separateStandardSpaceBar;
     readonly float _maxDistancePossible;
@@ -56,7 +56,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         bool separateStandardSpaceBar,
         float[,] positionPreferences,
         in Weights weights,
-        float keySpecificSwipeDirectionWeight,
+        FrozenDictionary<SwipeDirection, float>[,] keySpecificSwipeDirectionPreferences,
         FrozenDictionary<SwipeDirection, float> swipeDirectionPreferences,
         Key[,]? startingLayout)
     {
@@ -83,10 +83,9 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
         Traits = new Key[dimensions.Y, dimensions.X];
         Dimensions = dimensions;
-        _keySpecificSwipeDirectionPreferences =
-            GenerateKeySpecificSwipeDirections(keySpecificSwipeDirectionWeight, swipeDirectionPreferences);
+        _keySpecificSwipeDirectionPreferences = keySpecificSwipeDirectionPreferences;
+            
 
-        Debug.Assert((int)Thumb.Left == 0 && (int)Thumb.Right == 1);
         _previousInputs[(int)Thumb.Left] = new(0, dimensions.Y / 2, SwipeDirection.Center, Thumb.Left);
         _previousInputs[(int)Thumb.Right] = new(dimensions.X - 1, dimensions.Y / 2, SwipeDirection.Center, Thumb.Right);
         _previousInputAction =
@@ -101,13 +100,13 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             {
                 Traits[y, x] = new(startingLayout[y, x]);
             }
-
-            _charPositionDict = GenerateCharacterPositionDictionary(Traits);
         }
         else
         {
-            DistributeRandomKeyboardLayout(Traits, allCharacters, random, out _charPositionDict);
+            DistributeRandomKeyboardLayout(Traits, allCharacters, random, _characterFrequencies);
         }
+
+        _charPositionDict = GenerateCharacterPositionDictionary(Traits);
     }
 
     static readonly FrozenDictionary<SwipeDirection, float> SwipeAngles = new Dictionary<SwipeDirection, float>()
@@ -132,57 +131,88 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     public Key this[Vector2Int index] => GetKey(index.X, index.Y);
 
     static void DistributeRandomKeyboardLayout(Key[,] keys, char[] characterSet, Random random,
-        out FrozenDictionary<char, InputPositionInfo> charPositionDict)
+        Dictionary<char, long> characterFrequencies)
     {
         Vector2Int layoutDimensions = (keys.GetLength(1), keys.GetLength(1));
-        int index = 0;
-        int charactersPerKey = characterSet.Length / keys.Length;
 
-        EnsureAllKeysWillHaveALetter();
+        random.Shuffle(characterSet);
+        Array.Sort(characterSet, (a, b) =>
+        {
+            characterFrequencies.TryGetValue(a, out long aFrequency);
+            characterFrequencies.TryGetValue(b, out long bFrequency);
 
-        ReadOnlySpan<char> characterSpan = characterSet.AsSpan();
+            return bFrequency.CompareTo(aFrequency);
+        });
+
+        int cardinalPerKey = 4;
+        int diagonalPerKey = 4;
+
+        int centerCharCount = keys.Length;
+        int cardinalCharCount = Math.Clamp(cardinalPerKey * keys.Length, 0, characterSet.Length - centerCharCount);
+        int diagonalCharCount = Math.Clamp(diagonalPerKey * keys.Length, 0,
+            characterSet.Length - centerCharCount - cardinalCharCount);
+
+        Span<char> centerCharacters = characterSet.AsSpan(0, centerCharCount);
+        Span<char> cardinalCharacters = characterSet.AsSpan(centerCharCount, cardinalCharCount);
+        Span<char> diagonalCharacters = characterSet.AsSpan(centerCharCount + cardinalCharCount, diagonalCharCount);
+
+        cardinalPerKey = cardinalCharacters.Length / keys.Length;
+        diagonalPerKey = diagonalCharacters.Length / keys.Length;
+        int remainingCardinal = cardinalCharacters.Length % keys.Length;
+        int remainingDiagonal = diagonalCharacters.Length % keys.Length;
+
+        int cardinalInterval = (remainingCardinal > 0)
+            ? Math.Max(1, keys.Length / remainingCardinal)
+            : 0;
+
+        int diagonalInterval = (remainingDiagonal > 0)
+            ? Math.Max(1, keys.Length / remainingDiagonal)
+            : 0;
+
+        int centerIndex = 0;
+        int nextCardinalPos = cardinalInterval;
+        int nextDiagonalPos = diagonalInterval;
+        int keyIndex = 0;
+
         for (int y = 0; y < layoutDimensions.Y; y++)
-        for (int x = 0; x < layoutDimensions.X; x++)
         {
-            var lastIndex = Math.Clamp(index + charactersPerKey, 0, characterSet.Length - 1);
-            var thisKeysCharacters = characterSpan.Slice(index, lastIndex - index);
-            keys[y, x] = new Key(thisKeysCharacters, random);
-            index = lastIndex;
-        }
-
-        var remainingKeys = characterSet.Length - charactersPerKey * keys.Length;
-        for (int i = 0; i < remainingKeys; i++)
-        {
-            var key = keys[random.Next(layoutDimensions.Y), random.Next(layoutDimensions.X)];
-            bool added = key.TryAddCharacter(characterSet[index + i], random);
-            if (!added) i--;
-        }
-
-        Debug.Assert(index + remainingKeys == characterSet.Length);
-
-        void EnsureAllKeysWillHaveALetter()
-        {
-            bool allCharactersWillHaveLetters = false;
-            do
+            for (int x = 0; x < layoutDimensions.X; x++, keyIndex++)
             {
-                random.Shuffle(characterSet);
-                allCharactersWillHaveLetters = true;
-                for (int i = 0; i < characterSet.Length - charactersPerKey; i += charactersPerKey)
+                char centerChar = centerCharacters[centerIndex++];
+                var cardinalChars = cardinalCharacters.Slice(0, cardinalPerKey);
+                var diagonalChars = diagonalCharacters.Slice(0, diagonalPerKey);
+
+                if (remainingCardinal > 0
+                    && keyIndex == nextCardinalPos
+                    && cardinalCharacters.Length > cardinalPerKey)
                 {
-                    var hasLetters = false;
-                    for (int j = 0; j < charactersPerKey; j++)
-                    {
-                        hasLetters |= char.IsLetter(characterSet[i + j]);
-                    }
-
-                    if (hasLetters) continue;
-                    allCharactersWillHaveLetters = false;
-                    break;
+                    cardinalChars = cardinalCharacters.Slice(0, cardinalPerKey + 1);
+                    cardinalCharacters = cardinalCharacters[(cardinalPerKey + 1)..];
+                    remainingCardinal--;
+                    nextCardinalPos += cardinalInterval;
                 }
-            } while (!allCharactersWillHaveLetters);
-        }
+                else
+                {
+                    cardinalCharacters = cardinalCharacters[cardinalPerKey..];
+                }
 
-        charPositionDict = GenerateCharacterPositionDictionary(keys);
+                if (remainingDiagonal > 0
+                    && keyIndex == nextDiagonalPos
+                    && diagonalCharacters.Length > diagonalPerKey)
+                {
+                    diagonalChars = diagonalCharacters.Slice(0, diagonalPerKey + 1);
+                    diagonalCharacters = diagonalCharacters[(diagonalPerKey + 1)..];
+                    remainingDiagonal--;
+                    nextDiagonalPos += diagonalInterval;
+                }
+                else
+                {
+                    diagonalCharacters = diagonalCharacters[diagonalPerKey..];
+                }
+
+                keys[y, x] = new Key(centerChar, cardinalChars, diagonalChars, new Random(random.Next()));
+            }
+        }
     }
 
     static FrozenDictionary<char, InputPositionInfo> GenerateCharacterPositionDictionary(Key[,] keys)
@@ -204,61 +234,66 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         return dict.ToFrozenDictionary();
     }
 
-    public void ResetFitness() => Fitness = 0;
-
     TextRange? _currentStimulus;
 
-    public void Evaluate()
+    public void Evaluate(List<Range> ranges)
     {
-        ReadOnlySpan<char> input = _currentStimulus!.Text.AsSpan(_currentStimulus.Range);
-        foreach (char rawChar in input)
-        {
-            if (_separateStandardSpaceBar && rawChar == ' ')
+        Fitness = 0;
+       foreach (var range in ranges)
+       {
+            ReadOnlySpan<char> input = _currentStimulus!.Text.AsSpan(range);
+            float score = 0;
+            foreach (char rawChar in input)
             {
-                // thumbs to spacebar can always alternate
-                InputAction previousInputActionOfThisThumb = _previousInputAction.Thumb == Thumb.Left
-                    ? _previousInputs[(int)Thumb.Right]
-                    : _previousInputs[(int)Thumb.Left];
+                if (_separateStandardSpaceBar && rawChar == ' ')
+                {
+                    // thumbs to spacebar can always alternate
+                    InputAction previousInputActionOfThisThumb = _previousInputAction.Thumb == Thumb.Left
+                        ? _previousInputs[(int)Thumb.Right]
+                        : _previousInputs[(int)Thumb.Left];
 
-                Fitness += CalculateTravelScoreStandardSpaceBar(
-                    in previousInputActionOfThisThumb,
-                    out InputAction spaceKeyAction,
-                    _maxDistancePossibleStandardSpacebar);
-                _previousInputAction = spaceKeyAction;
-                continue;
+                    score += CalculateTravelScoreStandardSpaceBar(
+                        in previousInputActionOfThisThumb,
+                        out InputAction spaceKeyAction,
+                        _maxDistancePossibleStandardSpacebar);
+                    
+                    _previousInputAction = spaceKeyAction;
+                    continue;
+                }
+
+                // todo : implement different shift schemes: shift once then auto-lower, caps lock, one shift swipe, shift swipe on each side, etc
+                // bool isUpperCase = char.IsUpper(rawChar);
+                char c = char.ToLowerInvariant(rawChar); // lowercase only - ignore case
+
+                if (!_characterSet.Contains(c))
+                    continue;
+
+                _characterFrequencies[c]++;
+
+                var inputPositionInfo = _charPositionDict[c];
+                var thumb = GetWhichThumb(in _previousInputAction, inputPositionInfo.Column, Dimensions);
+                InputAction currentInput = new(inputPositionInfo.Column, inputPositionInfo.Row,
+                    inputPositionInfo.SwipeDirection, thumb);
+
+                int fingerIndex = (int)currentInput.Thumb;
+                var previousTypedByThisThumb = _previousInputs[fingerIndex];
+                // todo: handle first key press, where there is no previous typed key
+                score += CalculateTravelScore(
+                    currentTypedKey: in currentInput,
+                    previousInputOfThumb: in previousTypedByThisThumb,
+                    previousInput: in _previousInputAction,
+                    _maxDistancePossible);
+                _previousInputAction = currentInput;
+                _previousInputs[fingerIndex] = currentInput;
             }
 
-            // todo : implement different shift schemes: shift once then auto-lower, caps lock, one shift swipe, shift swipe on each side, etc
-            // bool isUpperCase = char.IsUpper(rawChar);
-            char c = char.ToLowerInvariant(rawChar); // lowercase only - ignore case
-
-            if (!_characterSet.Contains(c))
-                continue;
-
-            _characterFrequencies[c]++;
-
-            var inputPositionInfo = _charPositionDict[c];
-            var thumb = GetWhichThumb(in _previousInputAction, inputPositionInfo.Column, Dimensions);
-            InputAction currentInput = new(inputPositionInfo.Column, inputPositionInfo.Row,
-                inputPositionInfo.SwipeDirection, thumb);
-
-            int fingerIndex = (int)currentInput.Thumb;
-            var previousTypedByThisThumb = _previousInputs[fingerIndex];
-            // todo: handle first key press, where there is no previous typed key
-            Fitness += CalculateTravelScore(
-                currentTypedKey: in currentInput,
-                previousInputOfThumb: in previousTypedByThisThumb,
-                previousInput: in _previousInputAction,
-                _maxDistancePossible);
-            _previousInputAction = currentInput;
-            _previousInputs[fingerIndex] = currentInput;
-        }
+            Fitness += score;
+       };
+       
+       Fitness /= ranges.Count;
     }
 
-    public void SetStimulus(TextRange rangeInfo)
-    {
-        _currentStimulus = rangeInfo;
-    }
+    public void SetStimulus(TextRange rangeInfo) => _currentStimulus = rangeInfo;
 
     public void OverwriteTraits(Key[,] newKeys)
     {
@@ -271,6 +306,8 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             Traits[y, x].OverwriteKeysWith(newKeys[y, x]);
         }
     }
+
+    public void ResetFitness() => Fitness = 0;
 
     public void Mutate(double percentageOfCharactersToMutate)
     {
@@ -329,88 +366,11 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         _charPositionDict = GenerateCharacterPositionDictionary(Traits);
     }
 
-    FrozenDictionary<SwipeDirection, float>[,] GenerateKeySpecificSwipeDirections(float keysTowardsCenterWeight,
-        IReadOnlyDictionary<SwipeDirection, float> swipeDirectionPreferences)
-    {
-        var keySpecificSwipeDirections = new FrozenDictionary<SwipeDirection, float>[Dimensions.Y, Dimensions.X];
-        for (int y = 0; y < Dimensions.Y; y++)
-        {
-            for (int x = 0; x < Dimensions.X; x++)
-            {
-                // Identifying the keys position on the keyboard.
-                bool isLeftEdge = x == 0;
-                bool isRightEdge = x == Dimensions.X - 1;
-                bool isTopEdge = y == 0;
-                bool isBottomEdge = y == Dimensions.Y - 1;
-
-                // Initialize a new dictionary to store swipe preferences based on position.
-                var positionBasedSwipePreferences = new Dictionary<SwipeDirection, float>(swipeDirectionPreferences);
-
-                positionBasedSwipePreferences[SwipeDirection.Center] *= (1 + keysTowardsCenterWeight);
-
-                if (isLeftEdge && isTopEdge) // Top-left corner
-                {
-                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + keysTowardsCenterWeight);
-                }
-                else if (isRightEdge && isTopEdge) // Top-right corner
-                {
-                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + keysTowardsCenterWeight);
-                }
-                else if (isLeftEdge && isBottomEdge) // Bottom-left corner
-                {
-                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + keysTowardsCenterWeight);
-                }
-                else if (isRightEdge && isBottomEdge) // Bottom-right corner
-                {
-                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + keysTowardsCenterWeight);
-                }
-                else if (isLeftEdge) // Left edge
-                {
-                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + keysTowardsCenterWeight);
-                }
-                else if (isRightEdge) // Right edge
-                {
-                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + keysTowardsCenterWeight);
-                }
-                else if (isTopEdge) // Top edge
-                {
-                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + keysTowardsCenterWeight);
-                }
-                else if (isBottomEdge) // Bottom edge
-                {
-                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + keysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + keysTowardsCenterWeight);
-                }
-
-                keySpecificSwipeDirections[y, x] =
-                    positionBasedSwipePreferences.ToFrozenDictionary(x => x.Key, x => x.Value);
-            }
-        }
-
-        return keySpecificSwipeDirections;
-    }
-
     public void Kill()
     {
-        ResetFitness();
     }
 
-    double CalculateTravelScore(in InputAction currentTypedKey, in InputAction previousInputOfThumb,
+    float CalculateTravelScore(in InputAction currentTypedKey, in InputAction previousInputOfThumb,
         in InputAction previousInput, float maxDistancePossible)
     {
         bool sameKey = previousInput.KeyPosition == currentTypedKey.KeyPosition;
@@ -468,7 +428,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     float GetPreferredPositionScore(in Vector2Int position) => _positionPreferences[position.Y, position.X];
 
-    double CalculateTravelScoreStandardSpaceBar(in InputAction previousTypedKeyOfThumb, out InputAction spaceKeyAction,
+    float CalculateTravelScoreStandardSpaceBar(in InputAction previousTypedKeyOfThumb, out InputAction spaceKeyAction,
         float maxDistancePossible)
     {
         Vector2 spaceBarPosition = GetSpaceBarPressPosition(in previousTypedKeyOfThumb.KeyPosition);
@@ -533,21 +493,5 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             // Use left thumb if xPosition is less than the threshold, otherwise use right thumb
             return xPosition < threshold ? Thumb.Left : Thumb.Right;
         }
-    }
-
-
-    readonly struct Range
-    {
-        public readonly int Min;
-        public readonly int Max;
-
-        public Range(int min, int max)
-        {
-            Min = min;
-            Max = max;
-        }
-
-        public bool Contains(int value) => value >= Min && value <= Max;
-        public bool ContainsExclusive(int value) => value > Min && value < Max;
     }
 }
