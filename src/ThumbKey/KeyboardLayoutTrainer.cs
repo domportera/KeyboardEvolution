@@ -207,7 +207,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             float averageFitness = layouts.Average(x => x.Fitness);
 
             Console.WriteLine(
-                $"Average fitness ({averageFitness:f3)}) {(averageFitness > controlFitness ? ">" : "<")} than control {controlFitness:f3}\n" +
+                $"Average fitness ({averageFitness:f3}) {(averageFitness > controlFitness ? ">" : "<")} than control {controlFitness:f3}\n" +
                 $"and {(averageFitness > previousAverageFitness ? ">" : "<")} than previous {previousAverageFitness:f3}\n");
             previousAverageFitness = averageFitness;
 
