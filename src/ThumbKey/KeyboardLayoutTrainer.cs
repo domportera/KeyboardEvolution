@@ -40,7 +40,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         var charSet = charSetString.ToFrozenSet();
         var keySpecificSwipeDirectionPreferences =
             GenerateKeySpecificSwipeDirections(KeysTowardsCenterWeight, SwipeDirectionPreferences);
-        
+
 
         var controlLayout = new KeyboardLayout(dimensions, charSet, seed, UseStandardSpaceBar,
             positionPreferences, in FitnessWeights, keySpecificSwipeDirectionPreferences, SwipeDirectionPreferences,
@@ -56,7 +56,8 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             for (int i = tuple.Item1; i < tuple.Item2; i++)
             {
                 layouts[i] = new KeyboardLayout(dimensions, charSet, seed + i, UseStandardSpaceBar,
-                    positionPreferences, in FitnessWeights, keySpecificSwipeDirectionPreferences, SwipeDirectionPreferences,
+                    positionPreferences, in FitnessWeights, keySpecificSwipeDirectionPreferences,
+                    SwipeDirectionPreferences,
                     null);
             }
         });
@@ -134,8 +135,9 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
 
             for (int i = 0; i < missingCharactersForThisKey; i++)
             {
-                key.TryAddCharacter(missingCharacters[^1], random);
-                missingCharacters.RemoveAt(missingCharacters.Count - 1);
+                var added = key.TryAddCharacter(missingCharacters[^1], random);
+                if (added)
+                    missingCharacters.RemoveAt(missingCharacters.Count - 1);
             }
         }
 
@@ -257,20 +259,19 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             int childStartIndex = layoutsSortedDescending.Length - i - childCount;
             int childEndIndex = childStartIndex + childCount;
 
-            childStartIndex = childStartIndex < i ? childStartIndex : i;
+            var lastIteration = childStartIndex < quantityToReproduce;
+            if (lastIteration)
+                childStartIndex = quantityToReproduce;
 
             if (childStartIndex > childEndIndex) // we've populated them all!
                 break;
 
+            Debug.Assert(childStartIndex >= quantityToReproduce);
             var range = new Range(childStartIndex, childEndIndex);
             ReproductionGroups.Add(new ReproductionGroup(parent, range));
 
-            // get children from end of array
-            Span<KeyboardLayout> childrenToOverwrite = layoutsSortedDescending
-                .AsSpan()
-                .Slice(childStartIndex, childCount);
-
-            Reproduce(parent, childrenToOverwrite);
+            if (lastIteration)
+                break;
         }
 
         // now we have a list of parents and their children

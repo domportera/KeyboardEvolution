@@ -8,7 +8,6 @@ public class Key
 {
     public static readonly int MaxCharacterCount = Enum.GetValues<SwipeDirection>().Length - 1;
     readonly char[] _characters = new char[MaxCharacterCount];
-    readonly double[] _fitness = new double[MaxCharacterCount];
 
     internal Key(ReadOnlySpan<char> characters): this()
     {
@@ -25,6 +24,8 @@ public class Key
         random.Shuffle(cardinalCharacters);
         random.Shuffle(diagonalCharacters);
         
+        
+        
         this[SwipeDirection.Center] = center;
         this[SwipeDirection.Up] = cardinalCharacters[0];
         this[SwipeDirection.Down] = cardinalCharacters[1];
@@ -38,10 +39,6 @@ public class Key
 
     Key()
     {
-        double side = Math.Sqrt(MaxCharacterCount);
-        Debug.Assert(side % 1 == 0); // must be square... for now....
-
-        Dimensions = new((int)side, (int)side);   
     }
 
     Key(char[] characters)
@@ -118,36 +115,43 @@ public class Key
 
         char char1, char2;
         var shouldLoop = true;
-        var position1 = SwipeDirection.Center;
-        var position2 = SwipeDirection.Center;
+        SwipeDirection swipeDirection1;
+        SwipeDirection swipeDirection2;
         
         do
         {
             SwipeType swipeType = (SwipeType)random.Next(0, 3);
-            switch (swipeType)
-            {
-                case SwipeType.Center:
-                    position1 = SwipeDirection.Center;
-                    position2 = SwipeDirection.Center;
-                    break;
-                case SwipeType.Cardinal:
-                    position1 = CardinalDirections[random.Next(0, 4)];
-                    position2 = CardinalDirections[random.Next(0, 4)];
-                    break;
-                case SwipeType.Diagonal:
-                    position1 = DiagonalDirections[random.Next(0, 4)];
-                    position2 = DiagonalDirections[random.Next(0, 4)];
-                    break;
-            }
+            swipeDirection1 = GetRandomSwipeDirection(swipeType, random);
+            swipeDirection2 = GetRandomSwipeDirection(swipeType, random);
             
-            char1 = key1[position1];
-            char2 = key2[position2];
+            
+            char1 = key1[swipeDirection1];
+            char2 = key2[swipeDirection2];
 
             shouldLoop = char1 == char2;
         } while (shouldLoop);
 
-        key1[position1] = char2;
-        key2[position2] = char1;
+        key1[swipeDirection1] = char2;
+        key2[swipeDirection2] = char1;
+
+        static SwipeDirection GetRandomSwipeDirection(SwipeType swipeType, Random random)
+        {
+            SwipeDirection direction = SwipeDirection.Center;
+            switch (swipeType)
+            {
+                case SwipeType.Center:
+                    direction = SwipeDirection.Center;
+                    break;
+                case SwipeType.Cardinal:
+                    direction = CardinalDirections[random.Next(0, 4)];
+                    break;
+                case SwipeType.Diagonal:
+                    direction = DiagonalDirections[random.Next(0, 4)];
+                    break;
+            }
+
+            return direction;
+        }
     }
 
     int GetValidCharacterCount()
@@ -162,9 +166,6 @@ public class Key
         return count;
     }
 
-
-    public char[] GetAllCharacters() => _characters.ToArray();
-
     public char this[SwipeDirection direction]
     {
        get => _characters[(int)direction]; 
@@ -176,22 +177,21 @@ public class Key
     public int Length => _characters.Length;
     public IReadOnlyList<char> Characters => _characters;
 
-    public readonly Vector2Int Dimensions;
-
+    readonly List<int> _freeIndices = new(MaxCharacterCount);
     public bool TryAddCharacter(char character, Random random)
     {
-        List<int> freeIndices = new(MaxCharacterCount);
+        _freeIndices.Clear();
         for (int i = 0; i < _characters.Length; i++)
         {
             if (_characters[i] == default)
-                freeIndices.Add(i);
+                _freeIndices.Add(i);
         }
 
-        if (freeIndices.Count == 0)
+        if (_freeIndices.Count == 0)
             return false;
         
-        int randomIndex = random.Next(0, freeIndices.Count); 
-        _characters[freeIndices[randomIndex]] = character;
+        int randomIndex = random.Next(0, _freeIndices.Count); 
+        _characters[_freeIndices[randomIndex]] = character;
         return true;
     }
 
