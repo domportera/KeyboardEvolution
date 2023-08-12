@@ -113,35 +113,30 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         }
 
         int missingCharacterCount = missingCharacters.Count;
-        int missingCharactersPerKey = missingCharacterCount / startingLayout.Length;
-        int remainder = missingCharacterCount % startingLayout.Length;
 
         if (missingCharacterCount == 0)
             return;
 
         Random random = new(seed);
+        List<Key> allKeys = new();
+        foreach (Key key in startingLayout)
+            allKeys.Add(key);
 
-        // add missing keys to the starting layout
-        for (int y = 0; y < Dimensions.Y; y++)
-        for (int x = 0; x < Dimensions.X; x++)
+        random.Shuffle(allKeys);
+        
+        while(missingCharacters.Count > 0)
         {
-            Key key = startingLayout[y, x];
-            int missingCharactersForThisKey = missingCharactersPerKey;
-            if (remainder > 0)
-            {
-                missingCharactersForThisKey++;
-                remainder--;
-            }
-
-            for (int i = 0; i < missingCharactersForThisKey; i++)
+            foreach (Key key in allKeys)
             {
                 var added = key.TryAddCharacter(missingCharacters[^1], random);
                 if (added)
+                {
                     missingCharacters.RemoveAt(missingCharacters.Count - 1);
+                    if (missingCharacters.Count == 0)
+                        break;
+                }
             }
         }
-
-        Debug.Assert(missingCharacters.Count == 0);
     }
 
     static void EvolutionLoop(int generationCount, int entriesPerGeneration, string input, List<Range> ranges,
@@ -256,7 +251,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             var parent = layoutsSortedDescending[i];
             int childCount = (int)childrenPerCouple;
 
-            int childStartIndex = layoutsSortedDescending.Length - i - childCount;
+            int childStartIndex = layoutsSortedDescending.Length - (i * childCount) - childCount;
             int childEndIndex = childStartIndex + childCount;
 
             var lastIteration = childStartIndex < quantityToReproduce;

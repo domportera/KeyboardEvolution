@@ -159,10 +159,6 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         Span<char> cardinalCharacters = characterSet.AsSpan(centerCharCount, cardinalCharCount);
         Span<char> diagonalCharacters = characterSet.AsSpan(centerCharCount + cardinalCharCount, diagonalCharCount);
 
-#if DEBUG
-        AssertUniqueCharacters(centerCharacters.ToArray(), cardinalCharacters.ToArray(), diagonalCharacters.ToArray());
-#endif
-
         cardinalPerKey = cardinalCharacters.Length / keys.Length;
         diagonalPerKey = diagonalCharacters.Length / keys.Length;
         int remainingCardinal = cardinalCharacters.Length % keys.Length;
@@ -220,32 +216,6 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 keys[y, x] = new Key(centerChar, cardinalChars, diagonalChars, new Random(random.Next()));
             }
         }
-    }
-
-    static void AssertUniqueCharacters(params IReadOnlyList<char>[] chars)
-    {
-#if DEBUG
-        // assert the spans above contain no duplicate characters between each other
-        HashSet<char> allCharacters = new();
-        bool allCharactersAreUnique = true;
-        foreach (var span in chars)
-        {
-            foreach (var c in span)
-            {
-                allCharactersAreUnique &= c == default || allCharacters.Add(c);
-            }
-        }
-
-        if (!allCharactersAreUnique)
-            throw new Exception("Duplicate characters found in character set")
-            {
-                Data =
-                {
-                    { "allCharacters", allCharacters },
-                    { "allCharactersAreUnique", allCharactersAreUnique },
-                }
-            };
-#endif
     }
 
     static FrozenDictionary<char, InputPositionInfo> GenerateCharacterPositionDictionary(Key[,] keys)
@@ -344,6 +314,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     public void ResetFitness() => Fitness = 0;
 
+
     public void Mutate(double percentageOfCharactersToMutate)
     {
         // shuffle % of key characters with each other
@@ -354,6 +325,12 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             allKeys[y * Dimensions.X + x] = Traits[y, x];
         }
 
+        if (allKeys.Length != allKeys.Distinct().Count())
+        {
+            throw new Exception("Duplicate keys found in keyboard");
+        }
+        
+        
         _random.Shuffle(allKeys);
 
         // todo: this is ugly af
@@ -371,9 +348,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             iterator = 2;
             quantityPerSwap = 1;
         }
-#if DEBUG
-        IReadOnlyList<char>[] chars = new IReadOnlyList<char>[2];
-#endif
+        
         // we use "iterator" here to determine if we've moving through the array one at a time or two at a time.
         // we only move two at a time if we the quantityPerSwap rounds down to zero,
         // so we at least ensure that every pair is swapped once.
@@ -382,17 +357,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         for (int i = 0; i < allKeys.Length - 1; i += iterator)
         for (int j = 0; j < quantityPerSwap; j++)
         {
-#if DEBUG
-            var key1 = allKeys[i];
-            var key2 = allKeys[i + 1];
-            chars[0] = key1.Characters;
-            chars[1] = key2.Characters;
-            AssertUniqueCharacters(chars);
-            Key.SwapRandomCharacterFromEach(key1, key2, _random);
-            AssertUniqueCharacters(chars);
-#else
             Key.SwapRandomCharacterFromEach(allKeys[i], allKeys[i + 1], _random);
-#endif
         }
 
         // the above loop doesn't wrap around the array so the first and last elements are swapped, so we do that here. 
@@ -404,17 +369,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             for (int i = 0; i < quantityPerSwap; i++)
                 Key.SwapRandomCharacterFromEach(key1, key2, _random);
 
-#if DEBUG
-            chars[0] = key1.Characters;
-            chars[1] = key2.Characters;
-            AssertUniqueCharacters(chars);
-#endif
         }
-
-#if DEBUG
-        var characters = allKeys.Select(x => x.Characters).ToArray();
-        AssertUniqueCharacters(characters);
-#endif
 
         // iterate through keys 
         for (int y = 0; y < Dimensions.Y; y++)

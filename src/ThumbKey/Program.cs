@@ -24,7 +24,7 @@ Key[,] preset = LayoutPresets.Instance[PresetType.ThumbKeyEngV4];
 
 Console.WriteLine("Generating layouts");
 var thumbKey = new KeyboardLayoutTrainer(text, ranges, 
-    count: 1_000_000, 
+    count: 1_000, 
     generationCount: 300, 
     entriesPerGeneration: 1000, 
     seed: DateTime.UtcNow.Second, 
