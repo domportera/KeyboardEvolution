@@ -49,6 +49,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         var stopwatch = new Stopwatch();
         stopwatch.Start();
 
+        Console.WriteLine("Generating layouts");
         int partitionCount = 16;
         var customPartitioner = Partitioner.Create(0, count, count / partitionCount);
         Parallel.ForEach(customPartitioner, tuple =>
@@ -192,7 +193,11 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
 
         void HandleResults()
         {
-            layouts = layouts.OrderByDescending(layout => layout.Fitness).ToArray();
+            _sortStopwatch.Start();
+            layouts = layouts.AsParallel().OrderByDescending(layout => layout.Fitness).ToArray();
+            _sortStopwatch.Stop();
+            Console.WriteLine($"Took {_sortStopwatch.ElapsedMilliseconds}ms to sort layouts");
+            _sortStopwatch.Reset();
             PrintFitnessReport();
 
             Console.WriteLine("\n\nBest layout this generation:");
@@ -215,7 +220,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
             previousBestFitness = bestFitness;
         }
     }
-
+    static Stopwatch _sortStopwatch = new();
     static readonly List<ReproductionGroup> ReproductionGroups = new();
     static float _previousDelta = 0;
 
@@ -231,7 +236,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
 
         Debug.Assert(ReproductionRatio <= 0.5);
 
-        float childrenPerCouple = quantityToReplace / (float)quantityToReproduce;
+        float childrenPerParent = quantityToReplace / (float)quantityToReproduce;
 
         float averageFitnessReproductivePopulation =
             layoutsSortedDescending[0..quantityToReproduce].Average(x => x.Fitness);
@@ -240,7 +245,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         float delta = averageFitnessReproductivePopulation - averageFitnessNonReproductivePopulation;
         Console.WriteLine(
             $"Average fitness of reproductive population: {averageFitnessReproductivePopulation:f3} vs {averageFitnessNonReproductivePopulation:f3} for non-reproductive");
-        Console.WriteLine($"Reproductive population: {quantityToReproduce} with {childrenPerCouple} children each");
+        Console.WriteLine($"Reproductive population: {quantityToReproduce} with {childrenPerParent} children each");
         Console.WriteLine($"Delta: {delta:f3} is {(delta > _previousDelta ? '>' : '<')} {_previousDelta:f3}");
         _previousDelta = delta;
 
@@ -249,7 +254,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         for (int i = 0; i < quantityToReproduce; i++)
         {
             var parent = layoutsSortedDescending[i];
-            int childCount = (int)childrenPerCouple;
+            int childCount = (int)childrenPerParent;
 
             int childStartIndex = layoutsSortedDescending.Length - (i * childCount) - childCount;
             int childEndIndex = childStartIndex + childCount;

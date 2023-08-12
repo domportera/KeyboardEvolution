@@ -324,12 +324,6 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         {
             allKeys[y * Dimensions.X + x] = Traits[y, x];
         }
-
-        if (allKeys.Length != allKeys.Distinct().Count())
-        {
-            throw new Exception("Duplicate keys found in keyboard");
-        }
-        
         
         _random.Shuffle(allKeys);
 
@@ -367,7 +361,9 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             var key1 = allKeys[0];
             var key2 = allKeys[^1];
             for (int i = 0; i < quantityPerSwap; i++)
+            {
                 Key.SwapRandomCharacterFromEach(key1, key2, _random);
+            }
 
         }
 

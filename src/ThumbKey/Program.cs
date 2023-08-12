@@ -3,13 +3,6 @@
 using System.Diagnostics;
 using ThumbKey;
 
-Console.WriteLine("Hello, World from ThumbKey!");
-
-foreach (var arg in args)
-{
-    break;
-}
-
 const string path = @"C:\Users\Dom\Downloads\reddit_casual.json";
 const string tag = "text";
 
@@ -22,12 +15,11 @@ Debug.Assert(ranges != null && ranges.Count > 0);
 
 Key[,] preset = LayoutPresets.Instance[PresetType.ThumbKeyEngV4];
 
-Console.WriteLine("Generating layouts");
 var thumbKey = new KeyboardLayoutTrainer(text, ranges, 
-    count: 1_000, 
-    generationCount: 300, 
+    count: 1_000_000,
+    generationCount: 220, 
     entriesPerGeneration: 1000, 
-    seed: DateTime.UtcNow.Second, 
+    seed: 0, 
     preset);
     
     
