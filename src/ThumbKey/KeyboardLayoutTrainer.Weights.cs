@@ -5,13 +5,44 @@ namespace ThumbKey;
 
 public partial class KeyboardLayoutTrainer
 {
-    const string CharacterSetString = "abcdefghijklmnopqrstuvwxyz,.;*-_!?@$%&():'\"";
+    const string CharacterSetString = "abcdefghijklmnopqrstuvwxyz,.;*-_!?@$%&():'\"/\\`~[]{}<>";
     const bool UseStandardSpaceBar = true;
-    static readonly Vector2Int Dimensions = new(3, 3);
+    static readonly Vector2Int Dimensions = new(4, 3);
+
+    /// <summary>
+    /// The ratio of the population that will be reproduced. I.e., if this is 0.1, the top 10% of the population will
+    /// be copied and mutated to fill the rest of the population.
+    /// </summary>
     const double ReproductionRatio = 10E-4;
+
+    /// <summary>
+    /// The percentage of keys that will be mutated in a given key. I.e., if this is 0.3, 30% of the keys will be
+    /// changed in the mutation process.
+    /// </summary>
     const float MutationFactor = 0.3f;
+
+    /// <summary>
+    /// The main weights used in the fitness function
+    /// </summary>
+    static readonly Weights FitnessWeights = new(
+        distance: 0.5f,
+        trajectory: 0.3f,
+        handAlternation: 2f,
+        handCollisionAvoidance: 0.2f,
+        positionalPreference: 0.0f,
+        swipeDirection: 1f
+    );
+
+    const float CardinalPreference = 0.4f;
+    const float DiagonalPreference = 0f;
+    const float CenterPreference = 1f;
+
+
+    /// <summary>
+    /// The preference of swiping towards the center of the keyboard, used in generating positional preferences
+    /// </summary>
     const float KeysTowardsCenterWeight = 0.1f; //prefer swiping towards the center of the keyboard
-    
+
     static readonly Dictionary<Vector2Int, float[,]> PositionPreferences = new()
     {
         {
@@ -43,19 +74,6 @@ public partial class KeyboardLayoutTrainer
             }
         }
     };
-
-    static readonly Weights FitnessWeights = new(
-        distance: 0.5f,
-        trajectory: 0.3f,
-        handAlternation: 2f,
-        handCollisionAvoidance: 0.2f,
-        positionalPreference: 0.5f,
-        swipeDirection: 1f
-    );
-
-    const float CardinalPreference = 0.4f;
-    const float DiagonalPreference = 0f;
-    const float CenterPreference = 1f;
 
     static readonly FrozenDictionary<SwipeDirection, float> SwipeDirectionPreferences =
         new Dictionary<SwipeDirection, float>()

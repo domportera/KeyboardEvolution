@@ -2,15 +2,11 @@ namespace ThumbKey;
 
 public enum PresetType
 {
-    ThumbKeyEngV4
+    ThumbKeyEngV4, FourColumn
 }
 
-public class LayoutPresets
+public static class LayoutPresets
 {
-    public Key[,] this[PresetType index] => Presets[index];
-
-    public static LayoutPresets Instance => _layoutPresets ??= new();
-
     static readonly IReadOnlyDictionary<PresetType, Key[,]> Presets = new Dictionary<PresetType, Key[,]>()
     {
         {
@@ -35,6 +31,4 @@ public class LayoutPresets
             }
         }
     };
-
-    static LayoutPresets? _layoutPresets;
 }
