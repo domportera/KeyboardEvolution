@@ -7,7 +7,7 @@ public partial class KeyboardLayoutTrainer
 {
     const string CharacterSetString = "abcdefghijklmnopqrstuvwxyz,.;*-_!?@$%&():'\"/\\`~[]{}<>";
     const bool UseStandardSpaceBar = true;
-    static readonly Vector2Int Dimensions = new(4, 3);
+    readonly Array2DCoords _coords = new(4, 3);
 
     /// <summary>
     /// The ratio of the population that will be reproduced. I.e., if this is 0.1, the top 10% of the population will
@@ -43,10 +43,10 @@ public partial class KeyboardLayoutTrainer
     /// </summary>
     const float KeysTowardsCenterWeight = 0.1f; //prefer swiping towards the center of the keyboard
 
-    static readonly Dictionary<Vector2Int, float[,]> PositionPreferences = new()
+    static readonly Dictionary<Array2DCoords, float[,]> PositionPreferences = new()
     {
         {
-            (3, 3),
+            new(columnX: 3, rowY: 3),
             new[,]
             {
                 { 0.4f,  0.0f,    0.4f },
@@ -55,7 +55,7 @@ public partial class KeyboardLayoutTrainer
             }
         },
         {
-            (4, 3),
+            new (columnX: 4, rowY: 3),
             new[,]
             {
                 { 0.2f,  0.0f,    0.0f,    0.2f },
@@ -64,7 +64,7 @@ public partial class KeyboardLayoutTrainer
             }
         },
         {
-            (4, 4),
+            new (columnX: 4, rowY: 4),
             new[,]
             {
                 { 0.4f,  0.0f,    0.0f,    0.4f },

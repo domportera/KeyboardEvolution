@@ -37,8 +37,8 @@ public static class AngleUtils
         return (float)Math.Atan2(vector.Y, vector.X);
     }
     
-    public static float AngleFromVector2(Vector2Int vector)
+    public static float AngleFromVector2(Array2DCoords vector)
     {
-        return (float)Math.Atan2(vector.Y, vector.X);
+        return (float)Math.Atan2(vector.RowY, vector.ColumnX);
     }
 }

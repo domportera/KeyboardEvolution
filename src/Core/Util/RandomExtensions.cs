@@ -13,3 +13,17 @@ public static class RandomExtensions
         }
     }
 }
+
+
+public static class ArrayExtensions
+{
+    public static T Get<T>(this T[,] array, Array2DCoords coords)
+    {
+        return array[coords.RowY, coords.ColumnX];
+    }
+    
+    public static void Set<T>(this T[,] array, Array2DCoords coords, T value)
+    {
+        array[coords.RowY, coords.ColumnX] = value;
+    }
+}

@@ -13,7 +13,7 @@ var ranges = RedditDataReader.GetAllStringsOfTag(text, tag);
 
 Debug.Assert(ranges != null && ranges.Count > 0);
 
-Key[,] preset = null;//LayoutPresets.Instance[PresetType.ThumbKeyEngV4];
+Key[,] preset = LayoutPresets.Presets[PresetType.FourColumn];
 
 var thumbKey = new KeyboardLayoutTrainer(text, ranges, 
     count: 100_000,

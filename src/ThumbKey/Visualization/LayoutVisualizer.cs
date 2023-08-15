@@ -6,10 +6,10 @@ namespace ThumbKey.Visualization;
 public class LayoutVisualizer
 {
     public readonly KeyboardLayout LayoutToVisualize;
-    KeyVisualizer[,] _keyVisualizers;
+    readonly KeyVisualizer[,] _keyVisualizers;
 
-    readonly Vector2Int _layoutDimensions;
-    readonly Vector2Int _keyDimensions;
+    readonly Array2DCoords _layoutCoords;
+    readonly Array2DCoords _keyCoords;
     readonly char[,] _visualizations;
 
     static int _incrementingId = 0;
@@ -24,28 +24,32 @@ public class LayoutVisualizer
         LayoutToVisualize = layoutToVisualize;
         Key[,] keys = LayoutToVisualize.Traits;
 
-        _layoutDimensions = layoutToVisualize.Dimensions;
+        _layoutCoords = layoutToVisualize.Coords;
 
-        _keyVisualizers = new KeyVisualizer[_layoutDimensions.Y, _layoutDimensions.X];
-        for (int y = 0; y < layoutToVisualize.Dimensions.Y; y++)
-        for (int x = 0; x < layoutToVisualize.Dimensions.X; x++)
+        _keyVisualizers = new KeyVisualizer[_layoutCoords.RowY, _layoutCoords.ColumnX];
+        for (int y = 0; y < layoutToVisualize.Coords.RowY; y++)
+        for (int x = 0; x < layoutToVisualize.Coords.ColumnX; x++)
         {
-            _keyVisualizers[y, x] = new KeyVisualizer(keys[y, x]);
-            if (_keyDimensions == default)
+            var keyIndex2d = new Array2DCoords(x, y);
+            _keyVisualizers.Set(keyIndex2d, new KeyVisualizer(keys.Get(keyIndex2d)));
+            if (_keyCoords == default)
             {
-                _keyDimensions = _keyVisualizers[y, x].Dimensions;
+                var vizIndex2d = new Array2DCoords(x, y);
+                _keyCoords = _keyVisualizers.Get(vizIndex2d).Coords;
             }
         }
 
-        _visualizations = new char[_layoutDimensions.Y * _keyDimensions.Y, _layoutDimensions.X * _keyDimensions.X + 1];
+        _visualizations = new char[_layoutCoords.RowY * _keyCoords.RowY, _layoutCoords.ColumnX * _keyCoords.ColumnX + 1];
 
+        var lastX = _visualizations.GetLength(1) - 1;
         // make newline characters at the end of each row
         for (int y = 0; y < _visualizations.GetLength(0); y++)
         {
-            _visualizations[y, _visualizations.GetLength(1) - 1] = '\n';
+            var vizIndex2d = new Array2DCoords(lastX, y);
+            _visualizations.Set(vizIndex2d, '\n');
         }
 
-        _header = $"{Separator}Layout {_id.ToString()}: {_layoutDimensions}\n";
+        _header = $"{Separator}Layout {_id.ToString()}: {_layoutCoords}\n";
     }
 
     public void Visualize()
@@ -62,20 +66,24 @@ public class LayoutVisualizer
         builder.Append(LayoutToVisualize.Fitness);
         builder.Append('\n');
 
-        for (int y = 0; y < _layoutDimensions.Y; y++)
+        for (int y = 0; y < _layoutCoords.RowY; y++)
         {
-            for (int x = 0; x < _layoutDimensions.X; x++)
+            for (int x = 0; x < _layoutCoords.ColumnX; x++)
             {
-                KeyVisualizer keyVisualizer = _keyVisualizers[y, x];
+                var layoutIndex2d = new Array2DCoords(x, y);
+                KeyVisualizer keyVisualizer = _keyVisualizers.Get(layoutIndex2d);
                 keyVisualizer.RefreshVisualization();
 
-                Vector2Int position = new(x * _keyDimensions.X, y * _keyDimensions.Y);
+                Array2DCoords position = new(x * _keyCoords.ColumnX, y * _keyCoords.RowY);
 
-                for (int yKey = 0; yKey < _keyDimensions.Y; yKey++)
+                for (int yKey = 0; yKey < _keyCoords.RowY; yKey++)
                 {
-                    for (int xKey = 0; xKey < _keyDimensions.X; xKey++)
+                    for (int xKey = 0; xKey < _keyCoords.ColumnX; xKey++)
                     {
-                        _visualizations[position.Y + yKey, position.X + xKey] = keyVisualizer.VisualizedKey[yKey, xKey];
+                        var visualizationIndex2d = new Array2DCoords(position.ColumnX + xKey, position.RowY + yKey);
+                        var visualizedKeyIndex2d = new Array2DCoords(xKey, yKey);
+                        var visualizedKey = keyVisualizer.VisualizedKey.Get(visualizedKeyIndex2d);
+                        _visualizations.Set(visualizationIndex2d, visualizedKey);
                     }
                 }
             }
@@ -86,7 +94,8 @@ public class LayoutVisualizer
         {
             for (int x = 0; x < _visualizations.GetLength(1); x++)
             {
-                builder.Append(_visualizations[y, x]);
+                var visualizationIndex2d = new Array2DCoords(x, y);
+                builder.Append(_visualizations.Get(visualizationIndex2d));
             }
         }
 

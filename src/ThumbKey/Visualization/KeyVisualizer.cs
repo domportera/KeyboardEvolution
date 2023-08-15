@@ -15,7 +15,7 @@ public class KeyVisualizer
     const char EmptyCharacter = ' ';
     readonly int _sideLength;
 
-    public readonly Vector2Int Dimensions;
+    public readonly Array2DCoords Coords;
     public readonly char[,] VisualizedKey;
 
     internal KeyVisualizer(Key key)
@@ -25,33 +25,40 @@ public class KeyVisualizer
         double sideLengthDouble = Math.Sqrt(_key.Length);
         Debug.Assert(sideLengthDouble % 1 == 0); // length must be a perfect square
         _sideLength = (int)sideLengthDouble;
-        Dimensions = (_sideLength * 3 + 1, _sideLength + 2); // Update dimensions calculation
-        VisualizedKey = new char[Dimensions.Y, Dimensions.X];
+        Coords = (_sideLength * 3 + 1, _sideLength + 2); // Update dimensions calculation
+        VisualizedKey = new char[Coords.RowY, Coords.ColumnX];
         InitializeEmptyKey();
     }
 
     void InitializeEmptyKey()
     {
         // horizontal borders
-        for (int i = 0; i < Dimensions.X; i++)
+        for (int i = 0; i < Coords.ColumnX; i++)
         {
-            VisualizedKey[0, i] = TopBottomBorderCharacter;
-            VisualizedKey[Dimensions.Y - 1, i] = TopBottomBorderCharacter;
+            var topIndex = new Array2DCoords(i, 0);
+            VisualizedKey.Set(topIndex, TopBottomBorderCharacter);
+
+            var bottomIndex = new Array2DCoords(i, Coords.RowY - 1);
+            VisualizedKey.Set(bottomIndex, TopBottomBorderCharacter);
         }
 
         // vertical borders
-        for (int i = 1; i < Dimensions.Y - 1; i++)
+        for (int i = 1; i < Coords.RowY - 1; i++)
         {
-            VisualizedKey[i, 0] = SideBorderCharacter;
-            VisualizedKey[i, Dimensions.X - 1] = SideBorderCharacter;
+            var leftIndex = new Array2DCoords(0, i);
+            VisualizedKey.Set(leftIndex, SideBorderCharacter);
+
+            var rightIndex = new Array2DCoords(Coords.ColumnX - 1, i);
+            VisualizedKey.Set(rightIndex, SideBorderCharacter);
         }
 
         // initialize all characters to space
-        for (int i = 1; i < Dimensions.Y - 1; i++)
+        for (int y = 1; y < Coords.RowY - 1; y++)
         {
-            for (int j = 1; j < Dimensions.X - 1; j++)
+            for (int x = 1; x < Coords.ColumnX - 1; x++)
             {
-                VisualizedKey[i, j] = EmptyCharacter;
+                var index = new Array2DCoords(x, y);
+                VisualizedKey.Set(index, EmptyCharacter);
             }
         }
     }
@@ -69,9 +76,10 @@ public class KeyVisualizer
                 _ => visualizationCharacter
             };
 
-            int x = (i % _sideLength) * 3 + 1; 
+            int x = (i % _sideLength) * 3 + 1;
             int y = i / _sideLength + 1;
-            VisualizedKey[y, x] = visualizationCharacter;
+            var index2d = new Array2DCoords(x, y);
+            VisualizedKey.Set(index2d, visualizationCharacter);
         }
     }
 }

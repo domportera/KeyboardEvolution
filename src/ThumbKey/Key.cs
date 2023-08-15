@@ -172,7 +172,7 @@ public class Key
        private set => _characters[(int)direction] = value;
     } 
     
-    public char this[Vector2Int position] => _characters[position.X + position.X * position.Y + position.Y];
+    public char this[Array2DCoords position] => _characters[position.ColumnX + position.ColumnX * position.RowY + position.RowY];
     public char this[int position] => _characters[position];
     public int Length => _characters.Length;
     public IReadOnlyList<char> Characters => _characters;

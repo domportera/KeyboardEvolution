@@ -15,34 +15,33 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         int entriesPerGeneration,
         int seed, Key[,]? startingLayout)
     {
-        float[,] positionPreferences = PositionPreferences[Dimensions];
+
+        if(startingLayout!= null)
+            _coords = new Array2DCoords(columnX: startingLayout.GetLength(1), 
+                rowY: startingLayout.GetLength(0));
+        
+        float[,] positionPreferences = PositionPreferences[_coords];
 
         var layouts = new KeyboardLayout[count];
 
-        Vector2Int dimensions = startingLayout == null
-            ? Dimensions
-            : new(startingLayout.GetLength(0), startingLayout.GetLength(1));
 
         string charSetString = CharacterSetString.ToHashSet().ToArray().AsSpan().ToString(); // ensure uniqueness
         if (startingLayout != null)
         {
             AddAdditionalCharactersToCharacterSet(ref charSetString, startingLayout);
             var characterSet = charSetString.ToHashSet();
-            AddMissingCharactersToLayout(seed, startingLayout, dimensions, characterSet);
+            AddMissingCharactersToLayout(seed, startingLayout, _coords, characterSet);
         }
 
         foreach (var c in CharacterSetString)
             CharacterFrequencies.AddCharacterIfNotIncluded(c);
 
-        Debug.Assert(positionPreferences.GetLength(0) == dimensions.Y &&
-                     positionPreferences.GetLength(1) == dimensions.X);
-
         var charSet = charSetString.ToFrozenSet();
         var keySpecificSwipeDirectionPreferences =
-            GenerateKeySpecificSwipeDirections(KeysTowardsCenterWeight, SwipeDirectionPreferences);
+            GenerateKeySpecificSwipeDirections(KeysTowardsCenterWeight, SwipeDirectionPreferences, _coords);
 
 
-        var controlLayout = new KeyboardLayout(dimensions, charSet, seed, UseStandardSpaceBar,
+        var controlLayout = new KeyboardLayout(_coords, charSet, seed, UseStandardSpaceBar,
             positionPreferences, in FitnessWeights, keySpecificSwipeDirectionPreferences, SwipeDirectionPreferences,
             startingLayout);
 
@@ -56,7 +55,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         {
             for (int i = tuple.Item1; i < tuple.Item2; i++)
             {
-                layouts[i] = new KeyboardLayout(dimensions, charSet, seed + i, UseStandardSpaceBar,
+                layouts[i] = new KeyboardLayout(_coords, charSet, seed + i, UseStandardSpaceBar,
                     positionPreferences, in FitnessWeights, keySpecificSwipeDirectionPreferences,
                     SwipeDirectionPreferences,
                     null);
@@ -89,7 +88,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         charSetString += chars.ToString();
     }
 
-    static void AddMissingCharactersToLayout(int seed, Key[,] startingLayout, Vector2Int dimensions,
+    static void AddMissingCharactersToLayout(int seed, Key[,] startingLayout, Array2DCoords coords,
         IReadOnlySet<char> characterSet)
     {
         // add any missing characters from CharacterSet to the starting layout
@@ -97,10 +96,11 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         foreach (char c in characterSet)
         {
             bool found = false;
-            for (int y = 0; y < dimensions.Y; y++)
-            for (int x = 0; x < dimensions.X; x++)
+            for (int y = 0; y < coords.RowY; y++)
+            for (int x = 0; x < coords.ColumnX; x++)
             {
-                Key key = startingLayout[y, x];
+                var index2d = new Array2DCoords(x, y);
+                Key key = startingLayout.Get(index2d);
                 if (!key.Contains(c)) continue;
 
                 found = true;
@@ -312,18 +312,18 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
     }
 
     static FrozenDictionary<SwipeDirection, float>[,] GenerateKeySpecificSwipeDirections(float keysTowardsCenterWeight,
-        IReadOnlyDictionary<SwipeDirection, float> swipeDirectionPreferences)
+        IReadOnlyDictionary<SwipeDirection, float> swipeDirectionPreferences, Array2DCoords coords)
     {
-        var keySpecificSwipeDirections = new FrozenDictionary<SwipeDirection, float>[Dimensions.Y, Dimensions.X];
-        for (int y = 0; y < Dimensions.Y; y++)
+        var keySpecificSwipeDirections = new FrozenDictionary<SwipeDirection, float>[coords.RowY, coords.ColumnX];
+        for (int y = 0; y < coords.RowY; y++)
         {
-            for (int x = 0; x < Dimensions.X; x++)
+            for (int x = 0; x < coords.ColumnX; x++)
             {
                 // Identifying the keys position on the keyboard.
                 bool isLeftEdge = x == 0;
-                bool isRightEdge = x == Dimensions.X - 1;
+                bool isRightEdge = x == coords.ColumnX - 1;
                 bool isTopEdge = y == 0;
-                bool isBottomEdge = y == Dimensions.Y - 1;
+                bool isBottomEdge = y == coords.RowY - 1;
 
                 // Initialize a new dictionary to store swipe preferences based on position.
                 var positionBasedSwipePreferences = new Dictionary<SwipeDirection, float>(swipeDirectionPreferences);
@@ -379,8 +379,10 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
                     positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + keysTowardsCenterWeight);
                 }
 
-                keySpecificSwipeDirections[y, x] =
-                    positionBasedSwipePreferences.ToFrozenDictionary(x => x.Key, x => x.Value);
+                keySpecificSwipeDirections.Set(new(x, y),
+                    positionBasedSwipePreferences
+                        .ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value)
+                );
             }
         }
 

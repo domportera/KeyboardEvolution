@@ -19,7 +19,7 @@ readonly struct InputAction
         return HashCode.Combine(KeyPosition, (int)SwipeDirection, (int)Thumb);
     }
 
-    public readonly Vector2Int KeyPosition;
+    public readonly Array2DCoords KeyPosition;
     public readonly SwipeDirection SwipeDirection;
     public readonly Thumb Thumb;
 
@@ -27,7 +27,7 @@ readonly struct InputAction
     {
         SwipeDirection = swipeDirection;
         Thumb = thumb;
-        KeyPosition = new Vector2Int(column, row);
+        KeyPosition = new Array2DCoords(column, row);
     }
 
     public static bool operator ==(InputAction one, InputAction two)
