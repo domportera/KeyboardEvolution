@@ -304,10 +304,12 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
     {
         Key[,] parentKeys = parent.Traits;
 
+        var random = parent.Random;
         foreach (var child in childrenToOverwrite)
         {
             child.OverwriteTraits(parentKeys);
-            child.Mutate(MutationFactor);
+            float mutationFactor = UseRandomMutation ? random.NextSingle() * MutationFactor : MutationFactor;
+            child.Mutate(mutationFactor);
         }
     }
 

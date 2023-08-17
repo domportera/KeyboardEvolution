@@ -20,6 +20,11 @@ public partial class KeyboardLayoutTrainer
     /// changed in the mutation process.
     /// </summary>
     const float MutationFactor = 0.3f;
+    
+    /// <summary>
+    /// Allows for a random MutationFactor to be used instead of a constant one, with a range of [0, MutationFactor]
+    /// </summary>
+    const bool UseRandomMutation = true;
 
     /// <summary>
     /// The main weights used in the fitness function

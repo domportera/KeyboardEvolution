@@ -31,6 +31,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     public Array2DCoords Coords { get; }
 
     public float Fitness { get; private set; }
+    public Random Random => _random;
 
     readonly bool _separateStandardSpaceBar;
     readonly float _maxDistancePossible;
