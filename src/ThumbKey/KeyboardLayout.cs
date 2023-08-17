@@ -90,7 +90,8 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
 
         _previousInputs[(int)Thumb.Left] = new(0, coords.RowY / 2, SwipeDirection.Center, Thumb.Left);
-        _previousInputs[(int)Thumb.Right] = new(coords.ColumnX - 1, coords.RowY / 2, SwipeDirection.Center, Thumb.Right);
+        _previousInputs[(int)Thumb.Right] =
+            new(coords.ColumnX - 1, coords.RowY / 2, SwipeDirection.Center, Thumb.Right);
         _previousInputAction =
             _previousInputs[(int)Thumb.Right]; // default key - assumes user opens text field with right thumb
 
@@ -138,8 +139,6 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     static void DistributeRandomKeyboardLayout(Key[,] keys, char[] characterSet, Random random,
         Dictionary<char, long> characterFrequencies)
     {
-        Array2DCoords layoutCoords = (keys.GetLength(1), keys.GetLength(0));
-
         random.Shuffle(characterSet);
         Array.Sort(characterSet, (a, b) =>
         {
@@ -175,10 +174,11 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             : 0;
 
         int centerIndex = 0;
-        int nextCardinalPos = cardinalInterval;
-        int nextDiagonalPos = diagonalInterval;
+        int nextCardinalPos = 0;
+        int nextDiagonalPos = 0;
         int keyIndex = 0;
 
+        Array2DCoords layoutCoords = new Array2DCoords(columnX: keys.GetLength(1), rowY: keys.GetLength(0));
         for (int y = 0; y < layoutCoords.RowY; y++)
         {
             for (int x = 0; x < layoutCoords.ColumnX; x++, keyIndex++)
@@ -214,12 +214,15 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 {
                     diagonalCharacters = diagonalCharacters[diagonalPerKey..];
                 }
-                
+
                 var index2d = new Array2DCoords(columnX: x, rowY: y);
                 var key = new Key(centerChar, cardinalChars, diagonalChars, new Random(random.Next()));
                 keys.Set(index2d, key);
             }
         }
+        
+        if(remainingCardinal > 0 || remainingDiagonal > 0)
+            throw new Exception("Invalid character distribution - missing characters");
     }
 
     static FrozenDictionary<char, InputPositionInfo> GenerateCharacterPositionDictionary(Key[,] keys)
@@ -232,10 +235,11 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             var key = keys.Get(index2d);
             for (int i = 0; i < Key.MaxCharacterCount; i++)
             {
-                if (key[i] == default)
+                char c = key[i];
+                if (c == default)
                     continue;
 
-                dict.Add(key[i], new InputPositionInfo(x, y, (SwipeDirection)i, key));
+                dict.Add(c, new InputPositionInfo(x, y, (SwipeDirection)i, key));
             }
         }
 
@@ -333,7 +337,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             var index2d = new Array2DCoords(columnX: x, rowY: y);
             allKeys[y * Coords.ColumnX + x] = Traits.Get(index2d);
         }
-        
+
         _random.Shuffle(allKeys);
 
         // todo: this is ugly af
@@ -351,7 +355,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             iterator = 2;
             quantityPerSwap = 1;
         }
-        
+
         // we use "iterator" here to determine if we've moving through the array one at a time or two at a time.
         // we only move two at a time if we the quantityPerSwap rounds down to zero,
         // so we at least ensure that every pair is swapped once.
@@ -373,7 +377,6 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             {
                 Key.SwapRandomCharacterFromEach(key1, key2, _random);
             }
-
         }
 
         // iterate through keys 
