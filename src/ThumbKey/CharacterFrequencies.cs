@@ -1,6 +1,6 @@
 namespace ThumbKey;
 
-public class CharacterFrequencies
+public static class CharacterFrequencies
 {
     const long PrecalculatedFrequencyStrength = 100000;
 

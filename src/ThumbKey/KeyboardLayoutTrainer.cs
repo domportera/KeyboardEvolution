@@ -143,7 +143,6 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
     static void EvolutionLoop(int generationCount, int entriesPerGeneration, string input, List<Range> ranges,
         KeyboardLayout[] layouts, KeyboardLayout controlLayout)
     {
-        ranges = ranges[..entriesPerGeneration];
         var visualizers =
             layouts.AsParallel().Select(x => new LayoutVisualizer(x)).ToFrozenDictionary(x => x.LayoutToVisualize);
 
@@ -169,9 +168,10 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
 
         for (int i = 0; i < generationCount; i++)
         {
-            Console.WriteLine($"Generation {i + 1}...");
+            Console.WriteLine($"\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nGeneration {i + 1}\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
             stopwatch.Start();
-            layouts.AsParallel().ForAll(x => x.Evaluate(ranges));
+            List<Range> thisRange = GetRangeForThisGeneration(entriesPerGeneration, ranges, i);
+            layouts.AsParallel().ForAll(x => x.Evaluate(thisRange));
 
             stopwatch.Stop();
             Console.WriteLine(
@@ -218,6 +218,20 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
                 $"Best fitness: {bestFitness:f3} is {(bestFitness > controlFitness ? "greater" : "less")} than {controlFitness:f3} for control layout\n" +
                 $"and is {(bestFitness > previousBestFitness ? "greater" : "less")} than that of previous generation");
             previousBestFitness = bestFitness;
+        }
+
+        List<Range> GetRangeForThisGeneration(int entriesPerGeneration1, List<Range> list, int i)
+        {
+            var minRange = (i * entriesPerGeneration1) % list.Count;
+            var maxRange = ((i + 1) * entriesPerGeneration1) % list.Count;
+            if (maxRange < minRange)
+            {
+                minRange = 0; 
+                maxRange = entriesPerGeneration1;
+            }
+
+            var thisRange = list[minRange..maxRange];
+            return thisRange;
         }
     }
     static Stopwatch _sortStopwatch = new();
@@ -305,10 +319,20 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         Key[,] parentKeys = parent.Traits;
 
         var random = parent.Random;
+        float multiplicationFactor = 1f;
+        
         foreach (var child in childrenToOverwrite)
         {
             child.OverwriteTraits(parentKeys);
-            float mutationFactor = UseRandomMutation ? random.NextSingle() * MutationFactor : MutationFactor;
+
+            if (UseRandomMutation)
+            {
+                multiplicationFactor = random.NextSingle();
+                if(SqrtRandomMutation)
+                    multiplicationFactor = MathF.Sqrt(multiplicationFactor);
+            }
+            
+            float mutationFactor = MutationFactor * multiplicationFactor;
             child.Mutate(mutationFactor);
         }
     }

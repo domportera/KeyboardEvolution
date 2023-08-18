@@ -19,12 +19,17 @@ public partial class KeyboardLayoutTrainer
     /// The percentage of keys that will be mutated in a given key. I.e., if this is 0.3, 30% of the keys will be
     /// changed in the mutation process.
     /// </summary>
-    const float MutationFactor = 0.3f;
+    const float MutationFactor = 0.35f;
     
     /// <summary>
     /// Allows for a random MutationFactor to be used instead of a constant one, with a range of [0, MutationFactor]
     /// </summary>
     const bool UseRandomMutation = true;
+    
+    /// <summary>
+    /// If true, the mutation factor be MutationFactor * sqrt(Random.Range(0, 1)) to lean towards your specified mutation factor
+    /// </summary>
+    const bool SqrtRandomMutation = true;
 
     /// <summary>
     /// The main weights used in the fitness function
