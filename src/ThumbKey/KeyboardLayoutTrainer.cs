@@ -170,7 +170,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         {
             Console.WriteLine($"\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nGeneration {i + 1}\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
             stopwatch.Start();
-            List<Range> thisRange = GetRangeForThisGeneration(entriesPerGeneration, ranges, i);
+            List<Range> thisRange = entriesPerGeneration == ranges.Count ? ranges : GetRangeForThisGeneration(entriesPerGeneration, ranges, i);
             layouts.AsParallel().ForAll(x => x.Evaluate(thisRange));
 
             stopwatch.Stop();
