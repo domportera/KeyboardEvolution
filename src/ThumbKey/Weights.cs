@@ -68,12 +68,9 @@ public readonly record struct Weights
     public float CalculateScore(float[] results01)
     {
         var scoreVec = Vector.Multiply(new Vector<float>(results01), _weights);
-        float score = 0;
-        for (int i = 0; i < FieldCount; i++)
-        {
-            score += scoreVec[i];
-        }
-        return score * _totalWeightDivider;
+        
+        // the dot product of a vector with one is the sum of its elements
+        return Vector.Dot(scoreVec, Vector<float>.One) * _totalWeightDivider;
     }
     
     public float CalculateScore(float closeness01, float trajectory01, float handAlternation01,
