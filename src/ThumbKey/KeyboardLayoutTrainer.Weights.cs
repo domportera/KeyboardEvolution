@@ -5,7 +5,7 @@ namespace ThumbKey;
 
 public partial class KeyboardLayoutTrainer
 {
-    const string CharacterSetString = "abcdefghijklmnopqrstuvwxyz,.;*-_!?@$%&():'\"/\\`~[]{}<>";
+    const string CharacterSetString = "abcdefghijklmnopqrstuvwxyz";
     const bool UseStandardSpaceBar = true;
     readonly Array2DCoords _coords = new(4, 3);
 

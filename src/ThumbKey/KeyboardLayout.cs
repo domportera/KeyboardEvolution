@@ -28,7 +28,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         internal Key Key { get; }
     }
 
-    public Array2DCoords Coords { get; }
+    public Array2DCoords Dimensions { get; }
 
     public float Fitness { get; private set; }
     public Random Random => _random;
@@ -51,7 +51,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     // Coordinates are determined with (X = 0, Y = 0) being top-left
     public KeyboardLayout(
-        Array2DCoords coords,
+        Array2DCoords dimensions,
         FrozenSet<char> characterSet,
         int seed,
         bool separateStandardSpaceBar,
@@ -79,29 +79,29 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         else
         {
             // the space bar is always in the bottom row, so we can calculate the max distance possible
-            _maxDistancePossibleStandardSpacebar = Vector2.Distance(Vector2.Zero, coords + (0, 1));
+            _maxDistancePossibleStandardSpacebar = Vector2.Distance(Vector2.Zero, dimensions + (0, 1));
         }
 
         // assert that character set contains no duplicates
         Debug.Assert(allCharacters.Length == allCharacters.Distinct().Count());
 
-        Traits = new Key[coords.RowY, coords.ColumnX];
-        Coords = coords;
+        Traits = new Key[dimensions.RowY, dimensions.ColumnX];
+        Dimensions = dimensions;
         _keySpecificSwipeDirectionPreferences = keySpecificSwipeDirectionPreferences;
 
 
-        _previousInputs[(int)Thumb.Left] = new(0, coords.RowY / 2, SwipeDirection.Center, Thumb.Left);
+        _previousInputs[(int)Thumb.Left] = new(0, dimensions.RowY / 2, SwipeDirection.Center, Thumb.Left);
         _previousInputs[(int)Thumb.Right] =
-            new(coords.ColumnX - 1, coords.RowY / 2, SwipeDirection.Center, Thumb.Right);
+            new(dimensions.ColumnX - 1, dimensions.RowY / 2, SwipeDirection.Center, Thumb.Right);
         _previousInputAction =
             _previousInputs[(int)Thumb.Right]; // default key - assumes user opens text field with right thumb
 
-        _maxDistancePossible = Vector2.Distance(Vector2.One, coords);
+        _maxDistancePossible = Vector2.Distance(Vector2.One, dimensions);
 
         if (startingLayout is not null)
         {
-            for (int y = 0; y < coords.RowY; y++)
-            for (int x = 0; x < coords.ColumnX; x++)
+            for (int y = 0; y < dimensions.RowY; y++)
+            for (int x = 0; x < dimensions.ColumnX; x++)
             {
                 var index2d = new Array2DCoords(x, y);
                 Traits.Set(index2d, startingLayout.Get(index2d));
@@ -251,7 +251,8 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     public void Evaluate(List<Range> ranges)
     {
-        Fitness = 0;
+        float fitness = 0;
+        int charactersTestedCount = 0;
         foreach (var range in ranges)
         {
             ReadOnlySpan<char> input = _currentStimulus!.Text.AsSpan(range);
@@ -269,6 +270,8 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                         in previousInputActionOfThisThumb,
                         out InputAction spaceKeyAction,
                         _maxDistancePossibleStandardSpacebar);
+                    
+                    ++charactersTestedCount;
 
                     _previousInputAction = spaceKeyAction;
                     continue;
@@ -284,7 +287,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 _characterFrequencies[c]++;
 
                 var inputPositionInfo = _charPositionDict[c];
-                var thumb = GetWhichThumb(in _previousInputAction, inputPositionInfo.Column, Coords);
+                var thumb = GetWhichThumb(in _previousInputAction, inputPositionInfo.Column, Dimensions);
                 InputAction currentInput = new(inputPositionInfo.Column, inputPositionInfo.Row,
                     inputPositionInfo.SwipeDirection, thumb);
 
@@ -298,25 +301,24 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                     _maxDistancePossible);
                 _previousInputAction = currentInput;
                 _previousInputs[fingerIndex] = currentInput;
+                ++charactersTestedCount;
             }
 
-            Fitness += score;
+            fitness += score;
         }
 
-        ;
-
-        Fitness /= ranges.Count;
+        Fitness = fitness / charactersTestedCount;
     }
 
     public void SetStimulus(TextRange rangeInfo) => _currentStimulus = rangeInfo;
 
     public void OverwriteTraits(Key[,] newKeys)
     {
-        Debug.Assert(newKeys.GetLength(0) == Coords.RowY &&
-                     newKeys.GetLength(1) == Coords.ColumnX);
+        Debug.Assert(newKeys.GetLength(0) == Dimensions.RowY &&
+                     newKeys.GetLength(1) == Dimensions.ColumnX);
 
-        for (int y = 0; y < Coords.RowY; y++)
-        for (int x = 0; x < Coords.ColumnX; x++)
+        for (int y = 0; y < Dimensions.RowY; y++)
+        for (int x = 0; x < Dimensions.ColumnX; x++)
         {
             var index2d = new Array2DCoords(columnX: x, rowY: y);
             var myKey = Traits.Get(index2d);
@@ -331,12 +333,12 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     public void Mutate(double percentageOfCharactersToMutate)
     {
         // shuffle % of key characters with each other
-        Key[] allKeys = new Key[Coords.ColumnX * Coords.RowY];
-        for (int y = 0; y < Coords.RowY; y++)
-        for (int x = 0; x < Coords.ColumnX; x++)
+        Key[] allKeys = new Key[Dimensions.ColumnX * Dimensions.RowY];
+        for (int y = 0; y < Dimensions.RowY; y++)
+        for (int x = 0; x < Dimensions.ColumnX; x++)
         {
             var index2d = new Array2DCoords(columnX: x, rowY: y);
-            allKeys[y * Coords.ColumnX + x] = Traits.Get(index2d);
+            allKeys[y * Dimensions.ColumnX + x] = Traits.Get(index2d);
         }
 
         _random.Shuffle(allKeys);
@@ -381,8 +383,8 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         }
 
         // iterate through keys 
-        for (int y = 0; y < Coords.RowY; y++)
-        for (int x = 0; x < Coords.ColumnX; x++)
+        for (int y = 0; y < Dimensions.RowY; y++)
+        for (int x = 0; x < Dimensions.ColumnX; x++)
         {
             var index2d = new Array2DCoords(columnX: x, rowY: y);
             Traits
@@ -496,29 +498,24 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
         Vector2 GetSpaceBarPressPosition(in Array2DCoords previousThumbPosition)
         {
-            var x = (previousThumbPosition.ColumnX + Coords.ColumnX * 0.5f) *
+            var x = (previousThumbPosition.ColumnX + Dimensions.ColumnX * 0.5f) *
                     0.5f; // closer to center - avg of center + prev position
-            var y = Coords.RowY; // below other keys
+            var y = Dimensions.RowY; // below other keys
             return new Vector2(x, y);
         }
     }
 
-    static Thumb GetWhichThumb(in InputAction previousTypedKey, int xPosition, in Array2DCoords keyboardCoords)
+    static Thumb GetWhichThumb(in InputAction previousTypedKey, int xPosition, in Array2DCoords keyboardDimensions)
     {
-        Debug.Assert(xPosition >= 0);
+        float threshold = (keyboardDimensions.ColumnX - 1) * 0.5f; // -1 to account for 0-indexing
 
-        int threshold = (int)Math.Ceiling(keyboardCoords.ColumnX * 0.5f);
-        Debug.Assert(threshold > 0 && threshold <= keyboardCoords.ColumnX);
-
-        if (xPosition == threshold)
+        if (Math.Abs(xPosition - threshold) < .01f) // floating point equality
         {
             // Middle position - use opposite thumb of the previous input
             return previousTypedKey.Thumb == Thumb.Left ? Thumb.Right : Thumb.Left;
         }
-        else
-        {
-            // Use left thumb if xPosition is less than the threshold, otherwise use right thumb
-            return xPosition < threshold ? Thumb.Left : Thumb.Right;
-        }
+
+        // Use left thumb if xPosition is less than the threshold, otherwise use right thumb
+        return xPosition < threshold ? Thumb.Left : Thumb.Right;
     }
 }

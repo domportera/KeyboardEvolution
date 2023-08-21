@@ -66,6 +66,8 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         Console.WriteLine(
             $"Created {count} layouts in {stopwatch.Elapsed.Seconds}.{stopwatch.Elapsed.Milliseconds} seconds");
 
+        var random = new Random(seed);
+        random.Shuffle(ranges);
         entriesPerGeneration = entriesPerGeneration <= 0 ? ranges.Count : entriesPerGeneration;
         EvolutionLoop(generationCount, entriesPerGeneration, inputText, ranges, layouts, controlLayout);
     }
