@@ -59,8 +59,21 @@ public class Key
     }
     
     readonly Dictionary<char, long> _frequenciesOfMyCharacters = new(MaxCharacterCount);
-    readonly List<(char, SwipeDirection)> _pairs = new();
-    internal void RedistributeKeysOptimally(IReadOnlyDictionary<char, long> characterAppearances, IReadOnlyDictionary<SwipeDirection, float> swipeDirectionPreferences)
+    readonly List<CharSwipeDirection> _pairs = new();
+
+    readonly struct CharSwipeDirection
+    {
+        public readonly char Char;
+        public readonly SwipeDirection Swipe;
+        public CharSwipeDirection(char @char, SwipeDirection swipe)
+        {
+            Char = @char;
+            Swipe = swipe;
+        }
+    }
+
+    readonly Dictionary<SwipeDirection, float> _swipeDirectionPreferencesDict = new();
+    internal void RedistributeKeysOptimally(IReadOnlyDictionary<char, long> characterAppearances, float[] swipeDirectionPreferences)
     {
         _frequenciesOfMyCharacters.Clear();
         // redistribute keys so that the most common characters are in the center
@@ -70,7 +83,7 @@ public class Key
         foreach (var c in _characters)
         {
             if (c == default) continue;
-            _frequenciesOfMyCharacters.Add(c, characterAppearances[c]);
+            _frequenciesOfMyCharacters[c] = characterAppearances[c];
         }
         
         var charsSortedByFrequency = _frequenciesOfMyCharacters
@@ -80,8 +93,13 @@ public class Key
         
         // pair up the most common characters with the most preferred swipe directions
         // based on this keys position in the layout
+
+        for(int i = 0; i < swipeDirectionPreferences.Length; i++)
+        {
+            _swipeDirectionPreferencesDict[(SwipeDirection)i] = swipeDirectionPreferences[i];
+        }
         
-        var swipeDirectionPreferencesSorted = swipeDirectionPreferences
+        var swipeDirectionPreferencesSorted = _swipeDirectionPreferencesDict
             .OrderByDescending(x => x.Value) // order by descending swipe preference
             .Select(x => x.Key)
             .ToArray();
@@ -91,17 +109,17 @@ public class Key
         {
             var character = charsSortedByFrequency[i];
             var swipeDirection = swipeDirectionPreferencesSorted[i];
-            _pairs.Add((character, swipeDirection));
+            _pairs.Add(new(character, swipeDirection));
         }
         
         // clear char array
         Array.Clear(_characters, 0, _characters.Length);
         
         // assign chars to their new swipe directions
-        foreach (var (character, swipeDirection) in _pairs)
+        foreach (var pair in _pairs)
         {
-            var index = (int)swipeDirection;
-            _characters[index] = character;
+            var index = (int)pair.Swipe;
+            _characters[index] = pair.Char;
         }
     }
 

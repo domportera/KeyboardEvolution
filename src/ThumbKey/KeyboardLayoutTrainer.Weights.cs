@@ -53,7 +53,7 @@ public partial class KeyboardLayoutTrainer
     /// </summary>
     const float KeysTowardsCenterWeight = 0.1f; //prefer swiping towards the center of the keyboard
 
-    static readonly Dictionary<Array2DCoords, float[,]> PositionPreferences = new()
+    static readonly FrozenDictionary<Array2DCoords, float[,]> PositionPreferences = new Dictionary<Array2DCoords, float[,]>()
     {
         {
             new(columnX: 3, rowY: 3),
@@ -83,19 +83,5 @@ public partial class KeyboardLayoutTrainer
                 { 1,    1,      1,      1 },
             }
         }
-    };
-
-    static readonly FrozenDictionary<SwipeDirection, float> SwipeDirectionPreferences =
-        new Dictionary<SwipeDirection, float>()
-        {
-            { SwipeDirection.Left, CardinalPreference },
-            { SwipeDirection.UpLeft, DiagonalPreference },
-            { SwipeDirection.Up, CardinalPreference },
-            { SwipeDirection.UpRight, DiagonalPreference },
-            { SwipeDirection.Right, CardinalPreference },
-            { SwipeDirection.DownRight, DiagonalPreference },
-            { SwipeDirection.Down, CardinalPreference },
-            { SwipeDirection.DownLeft, DiagonalPreference },
-            { SwipeDirection.Center, CenterPreference },
-        }.ToFrozenDictionary();
+    }.ToFrozenDictionary();
 }
