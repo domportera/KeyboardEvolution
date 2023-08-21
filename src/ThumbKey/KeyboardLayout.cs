@@ -221,8 +221,8 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 keys.Set(index2d, key);
             }
         }
-        
-        if(remainingCardinal > 0 || remainingDiagonal > 0)
+
+        if (remainingCardinal > 0 || remainingDiagonal > 0)
             throw new Exception("Invalid character distribution - missing characters");
     }
 
@@ -253,6 +253,9 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     {
         float fitness = 0;
         int charactersTestedCount = 0;
+        var maxDistancePossibleInv = 1f / _maxDistancePossible;
+        var maxDistancePossibleStandardSpacebarInv = 1f / _maxDistancePossibleStandardSpacebar;
+
         foreach (var range in ranges)
         {
             ReadOnlySpan<char> input = _currentStimulus!.Text.AsSpan(range);
@@ -262,15 +265,13 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 if (_separateStandardSpaceBar && rawChar == ' ')
                 {
                     // thumbs to spacebar can always alternate
-                    InputAction previousInputActionOfThisThumb = _previousInputAction.Thumb == Thumb.Left
-                        ? _previousInputs[(int)Thumb.Right]
-                        : _previousInputs[(int)Thumb.Left];
+                    int thisThumb = (int)(_previousInputAction.Thumb == Thumb.Left ? Thumb.Right : Thumb.Left);
 
                     score += CalculateTravelScoreStandardSpaceBar(
-                        in previousInputActionOfThisThumb,
+                        previousTypedKeyOfThumb: in _previousInputs[thisThumb],
                         out InputAction spaceKeyAction,
-                        _maxDistancePossibleStandardSpacebar);
-                    
+                        maxDistancePossibleStandardSpacebarInv);
+
                     ++charactersTestedCount;
 
                     _previousInputAction = spaceKeyAction;
@@ -298,7 +299,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                     currentTypedKey: in currentInput,
                     previousInputOfThumb: in previousTypedByThisThumb,
                     previousInput: in _previousInputAction,
-                    _maxDistancePossible);
+                    maxDistancePossibleInv);
                 _previousInputAction = currentInput;
                 _previousInputs[fingerIndex] = currentInput;
                 ++charactersTestedCount;
@@ -399,8 +400,10 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     {
     }
 
+    readonly float[] _travelScoreValues = new float[Vector<float>.Count];
+
     float CalculateTravelScore(in InputAction currentTypedKey, in InputAction previousInputOfThumb,
-        in InputAction previousInput, float maxDistancePossible)
+        in InputAction previousInput, float maxDistancePossibleInv)
     {
         bool sameKey = previousInput.KeyPosition == currentTypedKey.KeyPosition;
         bool sameKeyAndSwipe = sameKey && previousInput.SwipeDirection == currentTypedKey.SwipeDirection;
@@ -408,9 +411,9 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
         if (sameKeyAndSwipe)
         {
-            return _fitnessWeights.CalculateScore(
-                closeness01: 1,
-                trajectory01: currentTypedKey.SwipeDirection switch // repeated swipes on the same key are cumbersome
+            _travelScoreValues[Weights.DistanceIndex] = 1;
+            _travelScoreValues[Weights.TrajectoryIndex] =
+                currentTypedKey.SwipeDirection switch // repeated swipes on the same key are cumbersome
                 {
                     SwipeDirection.Center => 1f,
                     SwipeDirection.Left
@@ -418,51 +421,53 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                         or SwipeDirection.Up
                         or SwipeDirection.Down => 0.35f,
                     _ => 0, // diagonals are the worst for this
-                },
-                handAlternation01: 1, // not technically hand alternation, but there's no reason to penalize double-letters
-                handCollisionAvoidance01: 1,
-                positionalPreference01: GetPreferredPositionScore(currentTypedKey.KeyPosition),
-                swipeDirectionPreference01: swipeDirectionPreference01
-            );
+                };
+            _travelScoreValues[Weights.HandAlternationIndex] =
+                1; // not technically hand alternation, but there's no reason to penalize double-letters
+            _travelScoreValues[Weights.HandCollisionAvoidanceIndex] = 1;
+            _travelScoreValues[Weights.PositionalPreferenceIndex] =
+                GetPreferredPositionScore(currentTypedKey.KeyPosition);
+            _travelScoreValues[Weights.SwipeDirectionPreferenceIndex] = swipeDirectionPreference01;
         }
-
-        float trajectoryCorrectness = 1;
-
-        if (previousInputOfThumb.SwipeDirection != SwipeDirection.Center)
+        else
         {
-            var travel = currentTypedKey.KeyPosition - previousInputOfThumb.KeyPosition;
-            var travelAngleRadians = AngleUtils.AngleFromVector2(travel); // 0 - 2PI 
-            trajectoryCorrectness =
-                1 - AngleUtils.NormalizedAngleDifference(
-                    travelAngleRadians,
-                    SwipeAngles[previousInputOfThumb.SwipeDirection]);
+            float distanceTraveled =
+                Vector2.DistanceSquared(previousInputOfThumb.KeyPosition, currentTypedKey.KeyPosition);
+            float distanceEffectiveness = 1f - distanceTraveled * maxDistancePossibleInv;
+            _travelScoreValues[Weights.DistanceIndex] = distanceEffectiveness;
+            _travelScoreValues[Weights.TrajectoryIndex] =
+                previousInputOfThumb.SwipeDirection == SwipeDirection.Center
+                    ? 1
+                    : 1 - AngleUtils.NormalizedAngleDifference(
+                        AngleUtils.AngleFromVector2(currentTypedKey.KeyPosition - previousInputOfThumb.KeyPosition),
+                        SwipeAngles[previousInputOfThumb.SwipeDirection]);
+
+            _travelScoreValues[Weights.HandAlternationIndex] =
+                previousInputOfThumb.Thumb != currentTypedKey.Thumb ? 1 : 0;
+            _travelScoreValues[Weights.HandCollisionAvoidanceIndex] =
+                previousInput.KeyPosition.ColumnX == currentTypedKey.KeyPosition.ColumnX ? 0 : 1;
+            _travelScoreValues[Weights.PositionalPreferenceIndex] =
+                GetPreferredPositionScore(currentTypedKey.KeyPosition);
+            _travelScoreValues[Weights.SwipeDirectionPreferenceIndex] = swipeDirectionPreference01;
         }
 
-        float distanceTraveled = Vector2.Distance(previousInputOfThumb.KeyPosition, currentTypedKey.KeyPosition);
-        float distanceEffectiveness = 1f - distanceTraveled / maxDistancePossible;
-
-        bool alternatingThumbs = previousInput.Thumb != currentTypedKey.Thumb;
-
-        return _fitnessWeights.CalculateScore(
-            closeness01: distanceEffectiveness,
-            trajectory01: trajectoryCorrectness,
-            handAlternation01: alternatingThumbs
-                ? 1
-                : 0, // not technically hand alternation, but there's no reason to penalize double-letters
-            handCollisionAvoidance01: previousInput.KeyPosition.ColumnX == currentTypedKey.KeyPosition.ColumnX ? 0 : 1,
-            positionalPreference01: GetPreferredPositionScore(currentTypedKey.KeyPosition),
-            swipeDirectionPreference01: swipeDirectionPreference01
-        );
+        return _fitnessWeights.CalculateScore(_travelScoreValues);
     }
 
     float GetPreferredPositionScore(in Array2DCoords position) => _positionPreferences[position.RowY, position.ColumnX];
 
     float CalculateTravelScoreStandardSpaceBar(in InputAction previousTypedKeyOfThumb, out InputAction spaceKeyAction,
-        float maxDistancePossible)
+        float maxDistancePossibleInverse)
     {
         Vector2 spaceBarPosition = GetSpaceBarPressPosition(in previousTypedKeyOfThumb.KeyPosition);
         Vector2 travel = spaceBarPosition - previousTypedKeyOfThumb.KeyPosition;
         SwipeDirection previousSwipeDirection = previousTypedKeyOfThumb.SwipeDirection;
+
+        spaceKeyAction = new InputAction(
+            column: (int)Math.Round(spaceBarPosition.X),
+            row: (int)Math.Round(spaceBarPosition.Y),
+            swipeDirection: SwipeDirection.Center,
+            thumb: previousTypedKeyOfThumb.Thumb);
 
         float trajectoryCorrectness;
         Debug.Assert(previousTypedKeyOfThumb.SwipeDirection != SwipeDirection.None);
@@ -477,24 +482,18 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 1 - AngleUtils.NormalizedAngleDifference(travelAngleRadians, SwipeAngles[previousSwipeDirection]);
         }
 
+        float distanceTraveled = spaceBarPosition.Y - previousTypedKeyOfThumb.KeyPosition.RowY;
+        Debug.Assert(distanceTraveled >= 0);
+        float distanceEffectiveness = 1 - (distanceTraveled * maxDistancePossibleInverse);
+        
+        _travelScoreValues[Weights.DistanceIndex] = distanceEffectiveness;
+        _travelScoreValues[Weights.TrajectoryIndex] = trajectoryCorrectness;
+        _travelScoreValues[Weights.HandAlternationIndex] = 1; // spacebar can always use opposite hand
+        _travelScoreValues[Weights.HandCollisionAvoidanceIndex] = 1; // spacebar is wide enough to never worry about overlap
+        _travelScoreValues[Weights.PositionalPreferenceIndex] = 0.5f; // spacebar position is relatively standardized, todo: allow non-standard space position? 3x4 layout?
+        _travelScoreValues[Weights.SwipeDirectionPreferenceIndex] = _swipeDirectionPreferences[spaceKeyAction.SwipeDirection];
 
-        float distanceTraveled = Math.Abs(spaceBarPosition.Y - previousTypedKeyOfThumb.KeyPosition.RowY);
-        float distanceEffectiveness = 1 - distanceTraveled / maxDistancePossible;
-
-        spaceKeyAction = new InputAction(
-            column: (int)Math.Round(spaceBarPosition.X),
-            row: (int)Math.Round(spaceBarPosition.Y),
-            swipeDirection: SwipeDirection.Center,
-            thumb: previousTypedKeyOfThumb.Thumb);
-
-        return _fitnessWeights.CalculateScore(
-            closeness01: distanceEffectiveness,
-            trajectory01: trajectoryCorrectness,
-            handAlternation01: 1, // spacebar can always use opposite hand
-            handCollisionAvoidance01: 1, // spacebar is wide enough to never worry about overlap
-            positionalPreference01: 0.5f, // spacebar position is relatively standardized, todo: allow non-standard space position? 3x4 layout?
-            swipeDirectionPreference01: _swipeDirectionPreferences[spaceKeyAction.SwipeDirection]
-        );
+        return _fitnessWeights.CalculateScore(_travelScoreValues);
 
         Vector2 GetSpaceBarPressPosition(in Array2DCoords previousThumbPosition)
         {

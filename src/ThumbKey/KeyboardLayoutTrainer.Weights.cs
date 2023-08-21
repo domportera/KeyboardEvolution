@@ -40,7 +40,7 @@ public partial class KeyboardLayoutTrainer
         handAlternation: 2f,
         handCollisionAvoidance: 0.2f,
         positionalPreference: 0.0f,
-        swipeDirection: 1f
+        swipeDirectionPreference: 1f
     );
 
     const float CardinalPreference = 0.4f;
