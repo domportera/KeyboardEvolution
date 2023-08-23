@@ -5,16 +5,20 @@ namespace ThumbKey;
 
 public static partial class KeyboardLayoutTrainer
 {
+    const int ParentCount = 10;
+    const int ChildrenPerParent = 100;
+    const int TotalCount = ParentCount + ParentCount * ChildrenPerParent;
+
+    static KeyboardLayoutTrainer()
+    {
+        ReproductionRatio = ParentCount / (double)TotalCount;
+    }
+
     public static void Start(string text, List<Range> ranges)
     {
-        const int parentCount = 10;
-        const int childrenPerParent = 100;
-        const int totalCount = parentCount + parentCount * childrenPerParent;
-        _reproductionRatio = parentCount / (double) totalCount;
-        
         Key[,] preset = LayoutPresets.Presets[PresetType.FourColumn];
         StartTraining(text, ranges,
-            count: totalCount,
+            count: TotalCount,
             generationCount: 19_220,
             entriesPerGeneration: -1,
             seed: 100,
@@ -29,7 +33,7 @@ public static partial class KeyboardLayoutTrainer
     /// The ratio of the population that will be reproduced. I.e., if this is 0.1, the top 10% of the population will
     /// be copied and mutated to fill the rest of the population.
     /// </summary>
-    static double _reproductionRatio;
+    static readonly double ReproductionRatio;
 
     /// <summary>
     /// The percentage of keys that will be mutated in a given key. I.e., if this is 0.3, 30% of the keys will be

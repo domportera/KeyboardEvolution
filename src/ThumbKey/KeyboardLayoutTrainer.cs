@@ -255,13 +255,13 @@ public static partial class KeyboardLayoutTrainer
     {
         var stopwatch = new Stopwatch();
         stopwatch.Start();
-        int quantityToReproduce = (int)Math.Floor(layoutsSortedDescending.Length * _reproductionRatio);
+        int quantityToReproduce = (int)Math.Floor(layoutsSortedDescending.Length * ReproductionRatio);
         if (quantityToReproduce == 0)
             quantityToReproduce = 1;
 
         int quantityToReplace = layoutsSortedDescending.Length - quantityToReproduce;
 
-        Debug.Assert(_reproductionRatio <= 0.5);
+        Debug.Assert(ReproductionRatio <= 0.5);
 
         float childrenPerParent = quantityToReplace / (float)quantityToReproduce;
 
