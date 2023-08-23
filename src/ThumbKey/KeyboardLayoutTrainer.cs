@@ -220,16 +220,16 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
 
         void PrintFitnessReport()
         {
-            float averageFitness = layouts.Average(x => x.Fitness);
+            double averageFitness = layouts.Average(x => x.Fitness);
 
             Console.WriteLine(
-                $"Average fitness ({averageFitness:f3}) {(averageFitness > controlFitness ? ">" : "<")} than control {controlFitness:f3}\n" +
+                $"Average fitness ({averageFitness:f5}) {(averageFitness > controlFitness ? ">" : "<")} than control {controlFitness:f3}\n" +
                 $"and {(averageFitness > previousAverageFitness ? ">" : "<")} than previous {previousAverageFitness:f3}\n");
             previousAverageFitness = averageFitness;
 
             var bestFitness = layouts[0].Fitness;
             Console.WriteLine(
-                $"Best fitness: {bestFitness:f3} is {(bestFitness > controlFitness ? "greater" : "less")} than {controlFitness:f3} for control layout\n" +
+                $"Best fitness: {bestFitness:f5} is {(bestFitness > controlFitness ? "greater" : "less")} than {controlFitness:f5} for control layout\n" +
                 $"and is {(bestFitness > previousBestFitness ? "greater" : "less")} than that of previous generation");
             previousBestFitness = bestFitness;
         }
@@ -250,7 +250,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
     }
     static Stopwatch _sortStopwatch = new();
     static readonly List<ReproductionGroup> ReproductionGroups = new();
-    static float _previousDelta = 0;
+    static double _previousDelta = 0;
 
     static void EvolveLayouts(KeyboardLayout[] layoutsSortedDescending)
     {
@@ -266,11 +266,11 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
 
         float childrenPerParent = quantityToReplace / (float)quantityToReproduce;
 
-        float averageFitnessReproductivePopulation =
+        double averageFitnessReproductivePopulation =
             layoutsSortedDescending[0..quantityToReproduce].Average(x => x.Fitness);
-        float averageFitnessNonReproductivePopulation =
+        double averageFitnessNonReproductivePopulation =
             layoutsSortedDescending[quantityToReproduce..].Average(x => x.Fitness);
-        float delta = averageFitnessReproductivePopulation - averageFitnessNonReproductivePopulation;
+        double delta = averageFitnessReproductivePopulation - averageFitnessNonReproductivePopulation;
         Console.WriteLine(
             $"Average fitness of reproductive population: {averageFitnessReproductivePopulation:f3} vs {averageFitnessNonReproductivePopulation:f3} for non-reproductive");
         Console.WriteLine($"Reproductive population: {quantityToReproduce} with {childrenPerParent} children each");

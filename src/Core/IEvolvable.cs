@@ -3,7 +3,7 @@ namespace Core;
 public interface IEvolvable<in T, TEvolvableTraits>
 {
     public TEvolvableTraits Traits { get; }
-    public float Fitness { get; }
+    public double Fitness { get; }
     public void SetStimulus(T input);
     public void Kill();
     public void ResetFitness();

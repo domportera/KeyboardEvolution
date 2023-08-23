@@ -27,7 +27,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         internal Key Key { get; }
     }
 
-    public float Fitness { get; private set; }
+    public double Fitness { get; private set; }
     public Random Random => _random;
 
     readonly bool _separateStandardSpaceBar;
@@ -247,7 +247,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     public void Evaluate(List<Range> ranges)
     {
-        float fitness = 0;
+        double fitness = 0;
         int charactersTestedCount = 0;
         var maxDistancePossibleInv = 1f / _maxDistancePossible;
         var maxDistancePossibleStandardSpacebarInv = 1f / _maxDistancePossibleStandardSpacebar;
@@ -257,7 +257,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         foreach (var range in ranges)
         {
             ReadOnlySpan<char> input = text.AsSpan(range);
-            float score = 0;
+            double score = 0;
             foreach (char rawChar in input)
             {
                 if (_separateStandardSpaceBar && rawChar == ' ')
@@ -486,7 +486,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         _travelScoreValues[Weights.HandCollisionAvoidanceIndex] =
             1; // spacebar is wide enough to never worry about overlap
         _travelScoreValues[Weights.PositionalPreferenceIndex] =
-            0.5f; // spacebar position is relatively standardized, todo: allow non-standard space position? 3x4 layout?
+            1f; // spacebar position is relatively standardized, todo: allow non-standard space position? 3x4 layout?
         _travelScoreValues[Weights.SwipeDirectionPreferenceIndex] =
             _swipeDirectionPreferences[(int)spaceKeyAction.SwipeDirection];
 
