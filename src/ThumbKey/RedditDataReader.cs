@@ -1,24 +1,20 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using Core.Util;
 
 namespace ThumbKey;
 
 public static class RedditDataReader
 {
-    public static string InitFile(string path)
-    {
-        return File.ReadAllText(path);
-    }
-
     /// <summary>
     /// Returns info to generate a span
     /// </summary>
     /// <param name="text"></param>
     /// <param name="tag"></param>
-    /// <param name="capacity"></param>
+    /// <param name="minTextLength"></param>
     /// <returns></returns>
     /// <exception cref="NotImplementedException"></exception>
-    public static List<Range> GetAllStringsOfTag(string text, string tag)
+    public static List<Range> GetAllStringsOfTag(string text, string tag, int minTextLength)
     {
         Console.WriteLine("Parsing body text...");
 
@@ -31,36 +27,58 @@ public static class RedditDataReader
         Parallel.ForEach(customPartitioner, (range, state) =>
         {
             string wholeTag = $"\"{tag}\":";
-            var input = text.AsSpan(range.Item1, range.Item2 - range.Item1);
+            var input = text.AsSpan();
             var tagSpan = wholeTag.AsSpan();
-            int tagStart = input.IndexOf(tagSpan);
+            int endIndex = range.Item2;
+            int startIndex = GetIndexAfterTag(input, tagSpan, range.Item1);
 
-            while (tagStart != -1)
+            while (startIndex > 0)
             {
-                var start = tagStart + tagSpan.Length;
-                if (start >= input.Length)
+                if (startIndex > endIndex)
                     break;
-                input = input.Slice(start);
 
-                int length;
-                bool gotEnd;
+                bool gotEnd = false;
 
-                do
+                var remainingText = input[startIndex..endIndex];
+                int openQuotesIndex = remainingText.IndexOf('\"');
+                if (openQuotesIndex < 0)
+                    return;
+
+                 // increment to exclude opening quotation mark
+                startIndex += openQuotesIndex + 1;
+                remainingText = input[startIndex..endIndex];
+
+                int length = 0;
+                int searchIndex = 0;
+                while(!gotEnd)
                 {
-                    length = input.IndexOf('\"');
-                    if (length == -1)
+                    var searchSpan = remainingText[searchIndex..];
+                    length += searchSpan.IndexOf('\"');
+                    if (length < 0)
                         return;
+                    gotEnd = length == 0 || remainingText[length - 1] != '\\';
+                    searchIndex += length + 1;
+                }
 
-                    gotEnd = input[length - 1] != '\\';
-                } while (!gotEnd);
+                int rangeEnd = startIndex + length - 1; // exclude closing quotation mark
 
-                var rangeToAdd = new Range(range.Item1 + tagStart, range.Item1 + tagStart + length);
-                rangeBag.Add(rangeToAdd);
+                if (rangeEnd - startIndex >= minTextLength)
+                {
+                    var rangeToAdd = new Range(startIndex, rangeEnd);
+                    rangeBag.Add(rangeToAdd);
+                }
 
-                tagStart = input.IndexOf(tagSpan);
+                startIndex = GetIndexAfterTag(input, tagSpan, rangeEnd);
             }
         });
 
         return rangeBag.ToList();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static int GetIndexAfterTag(ReadOnlySpan<char> input, ReadOnlySpan<char> tagSpan, int startIndex)
+        {
+            input = input.Slice(startIndex);
+            return input.IndexOf(tagSpan) + tagSpan.Length + startIndex + 1;
+        }
     }
 }
