@@ -1,17 +1,16 @@
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics;
-using Core;
 using Core.Util;
 using ThumbKey.Visualization;
 
 namespace ThumbKey;
 
-public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, KeyboardLayout, Key[,]>
+public static partial class KeyboardLayoutTrainer 
 {
     // todo: all punctuation in alphabet?
 
-    public KeyboardLayoutTrainer(string inputText, List<Range> ranges, int count, int generationCount,
+    static void StartTraining(string inputText, List<Range> ranges, int count, int generationCount,
         int entriesPerGeneration,
         int seed, Key[,]? startingLayout, Array2DCoords dimensions)
     {
@@ -84,7 +83,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         EvolutionLoop(generationCount, entriesPerGeneration, inputText, ranges, layouts, controlLayout);
     }
 
-    void AddAdditionalCharactersToCharacterSet(ref string charSetString, Key[,] startingLayout)
+    static void AddAdditionalCharactersToCharacterSet(ref string charSetString, Key[,] startingLayout)
     {
         //adds characters from the starting layout that aren't present in our character set
         List<char> charactersToAdd = new();
@@ -256,13 +255,13 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
     {
         var stopwatch = new Stopwatch();
         stopwatch.Start();
-        int quantityToReproduce = (int)Math.Floor(layoutsSortedDescending.Length * ReproductionRatio);
+        int quantityToReproduce = (int)Math.Floor(layoutsSortedDescending.Length * _reproductionRatio);
         if (quantityToReproduce == 0)
             quantityToReproduce = 1;
 
         int quantityToReplace = layoutsSortedDescending.Length - quantityToReproduce;
 
-        Debug.Assert(ReproductionRatio <= 0.5);
+        Debug.Assert(_reproductionRatio <= 0.5);
 
         float childrenPerParent = quantityToReplace / (float)quantityToReproduce;
 
