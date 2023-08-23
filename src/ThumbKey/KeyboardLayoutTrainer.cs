@@ -13,14 +13,14 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
 
     public KeyboardLayoutTrainer(string inputText, List<Range> ranges, int count, int generationCount,
         int entriesPerGeneration,
-        int seed, Key[,]? startingLayout)
+        int seed, Key[,]? startingLayout, Array2DCoords dimensions)
     {
 
         if(startingLayout!= null)
-            _coords = new Array2DCoords(columnX: startingLayout.GetLength(1), 
+            dimensions = new Array2DCoords(columnX: startingLayout.GetLength(1), 
                 rowY: startingLayout.GetLength(0));
         
-        float[,] positionPreferences = PositionPreferences[_coords];
+        float[,] positionPreferences = PositionPreferences[dimensions];
 
         var layouts = new KeyboardLayout[count];
 
@@ -42,7 +42,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         {
             AddAdditionalCharactersToCharacterSet(ref charSetString, startingLayout);
             var characterSet = charSetString.ToHashSet();
-            AddMissingCharactersToLayout(seed, startingLayout, _coords, characterSet);
+            AddMissingCharactersToLayout(seed, startingLayout, dimensions, characterSet);
         }
 
         foreach (var c in CharacterSetString)
@@ -50,10 +50,10 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
 
         var charSet = charSetString.ToFrozenSet();
         var keySpecificSwipeDirectionPreferences =
-            GenerateKeySpecificSwipeDirections(swipeDirectionPreferences, _coords);
+            GenerateKeySpecificSwipeDirections(swipeDirectionPreferences, dimensions);
 
 
-        var controlLayout = new KeyboardLayout(_coords, charSet, seed, UseStandardSpaceBar,
+        var controlLayout = new KeyboardLayout(dimensions, charSet, seed, UseStandardSpaceBar,
             positionPreferences, in FitnessWeights, keySpecificSwipeDirectionPreferences, swipeDirectionPreferences,
             startingLayout);
 
@@ -67,7 +67,7 @@ public partial class KeyboardLayoutTrainer : IEvolverAsexual<TextRange, Keyboard
         {
             for (int i = tuple.Item1; i < tuple.Item2; i++)
             {
-                layouts[i] = new KeyboardLayout(_coords, charSet, seed + i, UseStandardSpaceBar,
+                layouts[i] = new KeyboardLayout(dimensions, charSet, seed + i, UseStandardSpaceBar,
                     positionPreferences, in FitnessWeights, keySpecificSwipeDirectionPreferences,
                     swipeDirectionPreferences,
                     null);

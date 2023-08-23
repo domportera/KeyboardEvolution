@@ -24,11 +24,11 @@ public class LayoutVisualizer
         LayoutToVisualize = layoutToVisualize;
         Key[,] keys = LayoutToVisualize.Traits;
 
-        _layoutCoords = layoutToVisualize.Dimensions;
+        _layoutCoords = layoutToVisualize.Traits.GetDimensions();
 
         _keyVisualizers = new KeyVisualizer[_layoutCoords.RowY, _layoutCoords.ColumnX];
-        for (int y = 0; y < layoutToVisualize.Dimensions.RowY; y++)
-        for (int x = 0; x < layoutToVisualize.Dimensions.ColumnX; x++)
+        for (int y = 0; y < _layoutCoords.RowY; y++)
+        for (int x = 0; x < _layoutCoords.ColumnX; x++)
         {
             var keyIndex2d = new Array2DCoords(x, y);
             _keyVisualizers.Set(keyIndex2d, new KeyVisualizer(keys.Get(keyIndex2d)));

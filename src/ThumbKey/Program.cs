@@ -19,10 +19,13 @@ Debug.Assert(ranges != null && ranges.Count > 0);
 Key[,] preset = LayoutPresets.Presets[PresetType.FourColumn];
 
 var thumbKey = new KeyboardLayoutTrainer(text, ranges, 
-    count: 50_000,
-    generationCount: 2000, 
-    entriesPerGeneration: 1000, 
-    seed: 1, 
-    preset);
+    count: 100_000,
+    generationCount: 1_220, 
+    entriesPerGeneration: 10_000, 
+    seed: 100, 
+    startingLayout: preset,
+    dimensions: preset.GetDimensions());
+
+
     
     

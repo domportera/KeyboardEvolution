@@ -3,6 +3,7 @@ namespace ThumbKey;
 public enum PresetType
 {
     ThumbKeyEngV4,
+    ThumbKeyEngV4NoSymbols,
     FourColumn
 }
 
@@ -27,6 +28,27 @@ public static class LayoutPresets
                 {
                     new("\0\0c\0t\0\0\0\0"),
                     new("\0f'\0iz*.-"),
+                    new("d\0\0\0e\0\0\0\0")
+                },
+            }
+        },
+        {
+            PresetType.ThumbKeyEngV4NoSymbols,
+            new Key[,]
+            {
+                {
+                    new("\0\0\0\0s\0\0\0w"),
+                    new("\0\0\0\0r\0\0g\0"),
+                    new("\0\0\0\0o\0u\0\0")
+                },
+                {
+                    new("\0\0\0\0nm\0\0\0"),
+                    new("jqbkhpvxy"),
+                    new("\0\0\0la\0\0\0\0")
+                },
+                {
+                    new("\0\0c\0t\0\0\0\0"),
+                    new("\0f\0\0iz\0\0\0\0"),
                     new("d\0\0\0e\0\0\0\0")
                 },
             }

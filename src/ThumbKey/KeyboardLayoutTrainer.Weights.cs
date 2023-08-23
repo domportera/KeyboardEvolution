@@ -5,21 +5,20 @@ namespace ThumbKey;
 
 public partial class KeyboardLayoutTrainer
 {
-    const string CharacterSetString = "abcdefghijklmnopqrstuvwxyz";
+    const string CharacterSetString = "abcdefghijklmnopqrstuvwxyz'";
     const bool UseStandardSpaceBar = true;
-    readonly Array2DCoords _coords = new(4, 3);
 
     /// <summary>
     /// The ratio of the population that will be reproduced. I.e., if this is 0.1, the top 10% of the population will
     /// be copied and mutated to fill the rest of the population.
     /// </summary>
-    const double ReproductionRatio = 10E-4;
+    const double ReproductionRatio = 10E-5;
 
     /// <summary>
     /// The percentage of keys that will be mutated in a given key. I.e., if this is 0.3, 30% of the keys will be
     /// changed in the mutation process.
     /// </summary>
-    const float MutationFactor = 0.35f;
+    const float MutationFactor = 0.3f;
     
     /// <summary>
     /// Allows for a random MutationFactor to be used instead of a constant one, with a range of [0, MutationFactor]
@@ -29,7 +28,14 @@ public partial class KeyboardLayoutTrainer
     /// <summary>
     /// If true, the mutation factor be MutationFactor * sqrt(Random.Range(0, 1)) to lean towards your specified mutation factor
     /// </summary>
-    const bool SqrtRandomMutation = true;
+    const bool SqrtRandomMutation = false;
+
+
+    /// <summary>
+    /// If true, uses the key-specific swipe direction preferences for calculations related to swipeDirectionPreference in Weights
+    /// This is likely unnecessary due to the Trajectory calculation, but it's here if you want to use it
+    /// </summary>
+    public const bool UseKeySpecificSwipeDirectionPreferences = false;
 
     /// <summary>
     /// The main weights used in the fitness function
