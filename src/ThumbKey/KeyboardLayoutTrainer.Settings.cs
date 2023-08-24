@@ -22,7 +22,7 @@ public static partial class KeyboardLayoutTrainer
         //     Console.WriteLine(substring);
         // }
         
-        Key[,] preset = LayoutPresets.Presets[PresetType.FourColumn];
+        Key[,] preset = LayoutPresets.Presets[PresetType.ThumbKeyEngV4NoSymbols];
         StartTraining(text, ranges,
             count: TotalCount,
             generationCount: 100_000,
@@ -67,7 +67,13 @@ public static partial class KeyboardLayoutTrainer
     /// <summary>
     /// Governs whether characters within a key are reorganized/optimized after mutation.
     /// </summary>
-    public const bool RedistributeKeyCharactersBasedOnFrequency = true;
+    public const bool RedistributeKeyCharactersBasedOnFrequency = false;
+
+    /// <summary>
+    /// Normally, diagonal keys can only swap with diagonal keys, etc. This is useful for larger layouts, but for
+    /// layouts that are 3x3 and smaller, it is recommended to set this to true.
+    /// </summary>
+    public const bool AllowCardinalDiagonalSwaps = true;
 
     /// <summary>
     /// The main weights used in the fitness function
