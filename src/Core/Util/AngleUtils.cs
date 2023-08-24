@@ -4,9 +4,9 @@ namespace Core.Util;
 
 public static class AngleUtils
 {
-    const float TwoPi = (float)(2 * Math.PI);
-    const float Pi = (float)Math.PI;
-    const float OneOverPi = (float)(1 / Math.PI);
+    const float TwoPi = 2 * MathF.PI;
+    const float Pi = MathF.PI;
+    const float OneOverPi = 1 / MathF.PI;
 
     /// <summary>
     /// Returns a normalized double for distance between angles.
@@ -23,7 +23,7 @@ public static class AngleUtils
         float diff = Math.Abs(angle1 - angle2);
 
         // Account for wrap-around by taking the smaller of the two distances
-        if (diff > Math.PI)
+        if (diff > MathF.PI)
         {
             diff = TwoPi - diff;
         }

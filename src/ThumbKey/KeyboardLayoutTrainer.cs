@@ -179,12 +179,29 @@ public static partial class KeyboardLayoutTrainer
         var previousAverageFitness = controlFitness;
         var previousBestFitness = controlFitness;
 
+        int processorCount = Environment.ProcessorCount;
+        int partitionSize = layouts.Length / processorCount;
+        
+        if (partitionSize == 0)
+            throw new Exception($"Layout quantity should be considerably higher than processor count {processorCount}");
+
+        var customPartitioner = Partitioner.Create(0, layouts.Length, partitionSize);
+
         for (int i = 0; i < generationCount; i++)
         {
             Console.WriteLine($"\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nGeneration {i + 1}\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
             stopwatch.Start();
             List<Range> thisRange = entriesPerGeneration == ranges.Count ? ranges : GetRangeForThisGeneration(entriesPerGeneration, ranges, i);
-            layouts.AsParallel().ForAll(x => x.Evaluate(thisRange));
+            
+            layouts.AsParallel().ForAll(layout => layout.Evaluate(thisRange));
+            //var myLayouts = layouts;
+            //Parallel.ForEach(customPartitioner, (indexRange, _) =>
+            //{
+            //    int min = indexRange.Item1;
+            //    int max = indexRange.Item2;
+            //    for(int index = min; index < max; index++)
+            //        myLayouts[index].Evaluate(thisRange);
+            //});
 
             stopwatch.Stop();
             Console.WriteLine(

@@ -9,6 +9,7 @@ namespace ThumbKey;
 public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 {
     public Key[,] Traits { get; }
+    Array2DCoords _dimensions;
     FrozenDictionary<char, InputPositionInfo> _charPositionDict;
 
     record struct InputPositionInfo
@@ -43,8 +44,9 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     InputAction _previousInputAction;
 
-    readonly FrozenSet<char> _characterSet;
+    readonly char[] _characterSet;
     readonly Dictionary<char, long> _characterFrequencies;
+    static int _seedIterator = 0;
 
     // Coordinates are determined with (X = 0, Y = 0) being top-left
     public KeyboardLayout(
@@ -58,12 +60,13 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         float[] swipeDirectionPreferences,
         Key[,]? startingLayout)
     {
-        _characterSet = characterSet;
+        _characterSet = characterSet.ToArray();
         _characterFrequencies = new(CharacterFrequencies.Frequencies);
         _fitnessWeights = weights;
         _swipeDirectionPreferences = swipeDirectionPreferences;
         _positionPreferences = positionPreferences;
-        var random = new Random(seed);
+        var iterator = Interlocked.Increment(ref _seedIterator);
+        var random = new Random(seed + iterator);
         _random = random;
 
         char[] allCharacters = characterSet.ToArray();
@@ -109,6 +112,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         }
 
         _charPositionDict = GenerateCharacterPositionDictionary(Traits);
+        _dimensions = Traits.GetDimensions();
     }
 
     static readonly FrozenDictionary<SwipeDirection, float> SwipeAngles = new Dictionary<SwipeDirection, float>()
@@ -251,15 +255,15 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         int charactersTestedCount = 0;
         var maxDistancePossibleInv = 1f / _maxDistancePossible;
         var maxDistancePossibleStandardSpacebarInv = 1f / _maxDistancePossibleStandardSpacebar;
-        var dimensions = Traits.GetDimensions();
 
         string text = _currentStimulus!.Text;
         foreach (var range in ranges)
         {
             ReadOnlySpan<char> input = text.AsSpan(range);
             double score = 0;
-            foreach (char rawChar in input)
+            for (int i = 0; i < input.Length; i++)
             {
+                var rawChar = input[i];
                 if (_separateStandardSpaceBar && rawChar == ' ')
                 {
                     // thumbs to spacebar can always alternate
@@ -280,13 +284,14 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
                 // bool isUpperCase = char.IsUpper(rawChar);
                 char c = char.ToLowerInvariant(rawChar); // lowercase only - ignore case
 
-                if (!_characterSet.Contains(c))
-                    continue;
+                var gotInput = _charPositionDict.TryGetValue(c, out var inputPositionInfo);
 
+                if (!gotInput)
+                    continue;
+                
                 _characterFrequencies[c]++;
 
-                var inputPositionInfo = _charPositionDict[c];
-                var thumb = GetWhichThumb(in _previousInputAction, inputPositionInfo.Column, dimensions);
+                var thumb = GetWhichThumb(in _previousInputAction, inputPositionInfo.Column, _dimensions);
                 InputAction currentInput = new(inputPositionInfo.Column, inputPositionInfo.Row,
                     inputPositionInfo.SwipeDirection, thumb);
 
@@ -313,7 +318,6 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     public void OverwriteTraits(Key[,] newKeys)
     {
-
         var dimensions = Traits.GetDimensions();
         for (int y = 0; y < dimensions.RowY; y++)
         for (int x = 0; x < dimensions.ColumnX; x++)
@@ -330,7 +334,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
     public void Mutate(double percentageOfCharactersToMutate)
     {
-        var dimensions = Traits.GetDimensions();
+        var dimensions = _dimensions;
         // shuffle % of key characters with each other
         Key[] allKeys = new Key[dimensions.ColumnX * dimensions.RowY];
         for (int y = 0; y < dimensions.RowY; y++)
@@ -342,53 +346,35 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
         _random.Shuffle(allKeys);
 
-        // todo: this is ugly af
-
-        double characterCount = allKeys.Length * Key.MaxCharacterCount;
+        int characterCount = allKeys.Length * Key.MaxCharacterCount;
         double quantityToShuffle = characterCount * percentageOfCharactersToMutate;
-        double quantityPerKey = quantityToShuffle / allKeys.Length;
-        int quantityPerSwap = (int)Math.Round(quantityPerKey / 2);
+        int shuffleAmount = Math.Max(1, (int)Math.Round(quantityToShuffle / 2d));
 
-        bool singleSwapOnly = quantityPerSwap == 0;
-        int iterator = 1;
-
-        if (singleSwapOnly)
+        for (int i = 0; i < shuffleAmount; i++)
         {
-            iterator = 2;
-            quantityPerSwap = 1;
-        }
-
-        // we use "iterator" here to determine if we've moving through the array one at a time or two at a time.
-        // we only move two at a time if we the quantityPerSwap rounds down to zero,
-        // so we at least ensure that every pair is swapped once.
-        // otherwise we iterate one at a time, so every pair is swapped twice - once with each of its neighbors.
-        // that is why above
-        for (int i = 0; i < allKeys.Length - 1; i += iterator)
-        for (int j = 0; j < quantityPerSwap; j++)
-        {
-            Key.SwapRandomCharacterFromEach(allKeys[i], allKeys[i + 1], _random);
-        }
-
-        // the above loop doesn't wrap around the array so the first and last elements are swapped, so we do that here. 
-        // awkward yes, but more performant and readable than a ternary statement in the above loop.
-        if (!singleSwapOnly)
-        {
-            var key1 = allKeys[0];
-            var key2 = allKeys[^1];
-            for (int i = 0; i < quantityPerSwap; i++)
+            int randomIndex1 = _random.Next(0, allKeys.Length);
+            int randomIndex2 = randomIndex1;
+            while (randomIndex1 == randomIndex2)
             {
-                Key.SwapRandomCharacterFromEach(key1, key2, _random);
+                randomIndex2 = _random.Next(0, allKeys.Length);
             }
+
+            var key1 = allKeys[randomIndex1];
+            var key2 = allKeys[randomIndex2];
+            Key.SwapRandomCharacterFromEach(key1, key2, _random);
         }
 
-        // iterate through keys 
-        for (int y = 0; y < dimensions.RowY; y++)
-        for (int x = 0; x < dimensions.ColumnX; x++)
+        if (KeyboardLayoutTrainer.RedistributeKeyCharactersBasedOnFrequency)
         {
-            var index2d = new Array2DCoords(columnX: x, rowY: y);
-            Traits
-                .Get(index2d)
-                .RedistributeKeysOptimally(_characterFrequencies, _keySpecificSwipeDirectionPreferences.Get(index2d));
+            for (int y = 0; y < dimensions.RowY; y++)
+            for (int x = 0; x < dimensions.ColumnX; x++)
+            {
+                var index2d = new Array2DCoords(columnX: x, rowY: y);
+                Traits
+                    .Get(index2d)
+                    .RedistributeKeysOptimally(_characterFrequencies,
+                        _keySpecificSwipeDirectionPreferences.Get(index2d));
+            }
         }
 
         _charPositionDict = GenerateCharacterPositionDictionary(Traits);
@@ -431,7 +417,11 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             return _fitnessWeights.CalculateScore(_travelScoreValues);
         }
 
-        float distanceTraveled = Vector2.Distance(previousInputOfThumb.KeyPosition, currentTypedKey.KeyPosition);
+        var keyPos1 = previousInputOfThumb.KeyPosition;
+        var keyPos2 = currentTypedKey.KeyPosition;
+        var a = keyPos1.ColumnX - keyPos2.ColumnX;
+        var b = keyPos1.RowY - keyPos2.RowY;
+        float distanceTraveled = MathF.Sqrt((float)(a * a + b * b));
 
         _travelScoreValues[Weights.DistanceIndex] = 1f - distanceTraveled * maxDistancePossibleInv;
         _travelScoreValues[Weights.TrajectoryIndex] = previousInputOfThumb.SwipeDirection == SwipeDirection.Center
@@ -494,10 +484,9 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
         Vector2 GetSpaceBarPressPosition(in Array2DCoords previousThumbPosition)
         {
-            var dimensions = Traits.GetDimensions();
             // closer to center - avg of center + prev position
-            var x = (previousThumbPosition.ColumnX + dimensions.ColumnX * 0.5f) * 0.5f;
-            var y = dimensions.RowY; // below other keys
+            var x = (previousThumbPosition.ColumnX + _dimensions.ColumnX * 0.5f) * 0.5f;
+            var y = _dimensions.RowY; // below other keys
             return new Vector2(x, y);
         }
     }

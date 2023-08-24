@@ -5,8 +5,8 @@ namespace ThumbKey;
 
 public static partial class KeyboardLayoutTrainer
 {
-    const int ParentCount = 10;
-    const int ChildrenPerParent = 100;
+    const int ParentCount = 1;
+    const int ChildrenPerParent = 200;
     const int TotalCount = ParentCount + ParentCount * ChildrenPerParent;
 
     static KeyboardLayoutTrainer()
@@ -16,12 +16,18 @@ public static partial class KeyboardLayoutTrainer
 
     public static void Start(string text, List<Range> ranges)
     {
+        // foreach (var range in ranges)
+        // {
+        //     var substring = text.Substring(range.Start.Value, range.End.Value - range.Start.Value);
+        //     Console.WriteLine(substring);
+        // }
+        
         Key[,] preset = LayoutPresets.Presets[PresetType.FourColumn];
         StartTraining(text, ranges,
             count: TotalCount,
-            generationCount: 19_220,
-            entriesPerGeneration: -1,
-            seed: 100,
+            generationCount: 100_000,
+            entriesPerGeneration: ranges.Count / 12,
+            seed: (int)DateTime.UtcNow.TimeOfDay.TotalSeconds,
             startingLayout: preset,
             dimensions: preset.GetDimensions());
     }
@@ -39,7 +45,7 @@ public static partial class KeyboardLayoutTrainer
     /// The percentage of keys that will be mutated in a given key. I.e., if this is 0.3, 30% of the keys will be
     /// changed in the mutation process.
     /// </summary>
-    const float MutationFactor = 1f;
+    const float MutationFactor = 0.6f;
 
     /// <summary>
     /// Allows for a random MutationFactor to be used instead of a constant one, with a range of [0, MutationFactor]
@@ -59,12 +65,17 @@ public static partial class KeyboardLayoutTrainer
     public const bool UseKeySpecificSwipeDirectionPreferences = false;
 
     /// <summary>
+    /// Governs whether characters within a key are reorganized/optimized after mutation.
+    /// </summary>
+    public const bool RedistributeKeyCharactersBasedOnFrequency = true;
+
+    /// <summary>
     /// The main weights used in the fitness function
     /// </summary>
     static readonly Weights FitnessWeights = new(
         distance: 0.5f,
         trajectory: 0.3f,
-        handAlternation: 3.5f,
+        handAlternation: 1.5f,
         handCollisionAvoidance: 0.2f,
         positionalPreference: 0.0f,
         swipeDirectionPreference: 1f
