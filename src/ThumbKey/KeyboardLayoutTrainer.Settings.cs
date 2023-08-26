@@ -80,11 +80,11 @@ public static partial class KeyboardLayoutTrainer
     /// </summary>
     static readonly Weights FitnessWeights = new(
         distance: 0.5f,
-        trajectory: 0.3f,
+        trajectory: 0.5f,
         handAlternation: 1.5f,
         handCollisionAvoidance: 0.2f,
         positionalPreference: 0.0f,
-        swipeDirectionPreference: 1f
+        swipeDirectionPreference: 0.3f
     );
 
     public const float CardinalPreference = 0.4f;

@@ -19,7 +19,10 @@ var ranges = RedditDataReader.GetAllStringsOfTag(text, tag, minTextLength: 3,
     "This submission is a banned",
     "^If",
     "^etiquette",
-    "^guidelines"
+    "^guidelines",
+    "Reddit",
+    "upvote", 
+    "^^^"
 });
 
 Debug.Assert(ranges != null && ranges.Count > 0);

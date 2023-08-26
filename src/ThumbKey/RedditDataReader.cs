@@ -20,6 +20,7 @@ public static class RedditDataReader
         Console.WriteLine("Parsing body text...");
 
         ignoredPhrases ??= Array.Empty<string>();
+        ignoredPhrases = ignoredPhrases.Select(s => s.ToLower()).ToArray();
         const int partitionQuantity = 100;
         int partitionSize = text.Length / partitionQuantity;
 
@@ -67,11 +68,11 @@ public static class RedditDataReader
                 if (rangeEnd - startIndex >= minTextLength)
                 {
                     var rangeToAdd = new Range(startIndex, rangeEnd);
-                    var currentEntry = input[rangeToAdd];
+                    var currentEntryLowercase = input[rangeToAdd].ToString().ToLower();
                     var shouldUse = true;
                     foreach(var phrase in ignoredPhrases)
                     {
-                        if (currentEntry.IndexOf(phrase) != -1)
+                        if (currentEntryLowercase.IndexOf(phrase, StringComparison.Ordinal) != -1)
                         {
                             shouldUse = false;
                             break;
