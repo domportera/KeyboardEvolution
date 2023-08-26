@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Core;
 using Core.Util;
 
@@ -264,6 +265,8 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             for (int i = 0; i < input.Length; i++)
             {
                 var rawChar = input[i];
+                CharacterSubstitution(ref i, input, ref rawChar);
+                
                 if (_separateStandardSpaceBar && rawChar == ' ')
                 {
                     // thumbs to spacebar can always alternate
@@ -312,6 +315,25 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         }
 
         Fitness = fitness / charactersTestedCount;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void CharacterSubstitution(ref int i, ReadOnlySpan<char> input, ref char rawChar)
+        {
+            foreach (var replacement in KeyboardLayoutTrainer.CharacterSubsitutions)
+            {
+                if (i + replacement.Count > input.Length)
+                    continue;
+
+                if (rawChar == replacement.Original[0])
+                {
+                    var span = input.Slice(i, replacement.Count);
+                    if (span.SequenceEqual(replacement.Original.AsSpan())) ;
+                    rawChar = replacement.Replacement;
+                    i += replacement.Count - 1; // -1 to account for the i++ in the for loop
+                    break;
+                }
+            }
+        }
     }
 
     public void SetStimulus(TextRange rangeInfo) => _currentStimulus = rangeInfo;
@@ -403,12 +425,12 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             _travelScoreValues[Weights.TrajectoryIndex] =
                 currentTypedKey.SwipeDirection switch // repeated swipes on the same key are cumbersome
                 {
-                    SwipeDirection.Center => 1f,
+                    SwipeDirection.Center => KeyboardLayoutTrainer.CenterPreference,
                     SwipeDirection.Left
                         or SwipeDirection.Right
                         or SwipeDirection.Up
-                        or SwipeDirection.Down => 0.35f,
-                    _ => 0, // diagonals are the worst for this
+                        or SwipeDirection.Down => KeyboardLayoutTrainer.CardinalPreference,
+                    _ => KeyboardLayoutTrainer.DiagonalPreference
                 };
             _travelScoreValues[Weights.HandAlternationIndex] = 1;
             _travelScoreValues[Weights.HandCollisionAvoidanceIndex] = 1;

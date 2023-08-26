@@ -12,12 +12,14 @@ public static class RedditDataReader
     /// <param name="text"></param>
     /// <param name="tag"></param>
     /// <param name="minTextLength"></param>
+    /// <param name="ignoredPhrases"></param>
     /// <returns></returns>
     /// <exception cref="NotImplementedException"></exception>
-    public static List<Range> GetAllStringsOfTag(string text, string tag, int minTextLength)
+    public static List<Range> GetAllStringsOfTag(string text, string tag, int minTextLength, params string[]? ignoredPhrases)
     {
         Console.WriteLine("Parsing body text...");
 
+        ignoredPhrases ??= Array.Empty<string>();
         const int partitionQuantity = 100;
         int partitionSize = text.Length / partitionQuantity;
 
@@ -65,7 +67,19 @@ public static class RedditDataReader
                 if (rangeEnd - startIndex >= minTextLength)
                 {
                     var rangeToAdd = new Range(startIndex, rangeEnd);
-                    rangeBag.Add(rangeToAdd);
+                    var currentEntry = input[rangeToAdd];
+                    var shouldUse = true;
+                    foreach(var phrase in ignoredPhrases)
+                    {
+                        if (currentEntry.IndexOf(phrase) != -1)
+                        {
+                            shouldUse = false;
+                            break;
+                        }
+                    }
+                    
+                    if(shouldUse)
+                        rangeBag.Add(rangeToAdd);
                 }
 
                 startIndex = GetIndexAfterTag(input, tagSpan, rangeEnd);

@@ -10,7 +10,17 @@ Console.SetOut(new TextAndConsoleWriter(output, append: false));
 Console.WriteLine($"Reading file at {path}");
 var text = File.ReadAllText(path);
 Console.WriteLine($"Parsing input for tag \"{tag}\"...");
-var ranges = RedditDataReader.GetAllStringsOfTag(text, tag, minTextLength: 3);
+var ranges = RedditDataReader.GetAllStringsOfTag(text, tag, minTextLength: 3,
+    ignoredPhrases: new[]{
+    "it has been removed for the following",
+    "/rules",
+    "^Please ^refer ^to ^our",
+    "Thank you for your submission",
+    "This submission is a banned",
+    "^If",
+    "^etiquette",
+    "^guidelines"
+});
 
 Debug.Assert(ranges != null && ranges.Count > 0);
 

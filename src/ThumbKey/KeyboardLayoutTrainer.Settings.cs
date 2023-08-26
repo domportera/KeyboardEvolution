@@ -87,11 +87,22 @@ public static partial class KeyboardLayoutTrainer
         swipeDirectionPreference: 1f
     );
 
-    const float CardinalPreference = 0.4f;
-    const float DiagonalPreference = 0f;
-    const float CenterPreference = 1f;
+    public const float CardinalPreference = 0.4f;
+    public const float DiagonalPreference = 0f;
+    public const float CenterPreference = 1f;
 
+    public static readonly CharacterReplacement[] CharacterSubsitutions =
+    {
+        new(@"\u2019", '\'')
+    };
 
+    public record CharacterReplacement(string Original, char Replacement)
+    {
+        public readonly string Original = Original;
+        public readonly char Replacement = Replacement;
+        public readonly int Count = Original.Length;
+    }
+        
     /// <summary>
     /// The preference of swiping towards the center of the keyboard, used in generating positional preferences
     /// </summary>
