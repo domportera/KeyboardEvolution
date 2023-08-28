@@ -6,7 +6,7 @@ using ThumbKey.Visualization;
 
 namespace ThumbKey;
 
-public static partial class KeyboardLayoutTrainer 
+public static partial class KeyboardLayoutTrainer
 {
     // todo: all punctuation in alphabet?
 
@@ -14,11 +14,10 @@ public static partial class KeyboardLayoutTrainer
         int entriesPerGeneration,
         int seed, Key[,]? startingLayout, Array2DCoords dimensions)
     {
-
-        if(startingLayout!= null)
-            dimensions = new Array2DCoords(columnX: startingLayout.GetLength(1), 
+        if (startingLayout != null)
+            dimensions = new Array2DCoords(columnX: startingLayout.GetLength(1),
                 rowY: startingLayout.GetLength(0));
-        
+
         float[,] positionPreferences = PositionPreferences[dimensions];
 
         var layouts = new KeyboardLayout[count];
@@ -33,8 +32,7 @@ public static partial class KeyboardLayoutTrainer
         swipeDirectionPreferences[(int)SwipeDirection.UpRight] = DiagonalPreference;
         swipeDirectionPreferences[(int)SwipeDirection.DownLeft] = DiagonalPreference;
         swipeDirectionPreferences[(int)SwipeDirection.DownRight] = DiagonalPreference;
-        
-        
+
 
         string charSetString = CharacterSetString.ToHashSet().ToArray().AsSpan().ToString(); // ensure uniqueness
         if (startingLayout != null)
@@ -137,8 +135,8 @@ public static partial class KeyboardLayoutTrainer
             allKeys.Add(key);
 
         random.Shuffle(allKeys);
-        
-        while(missingCharacters.Count > 0)
+
+        while (missingCharacters.Count > 0)
         {
             foreach (Key key in allKeys)
             {
@@ -181,7 +179,7 @@ public static partial class KeyboardLayoutTrainer
 
         int processorCount = Environment.ProcessorCount;
         int partitionSize = layouts.Length / processorCount;
-        
+
         if (partitionSize == 0)
             throw new Exception($"Layout quantity should be considerably higher than processor count {processorCount}");
 
@@ -189,10 +187,13 @@ public static partial class KeyboardLayoutTrainer
 
         for (int i = 0; i < generationCount; i++)
         {
-            Console.WriteLine($"\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nGeneration {i + 1}\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+            Console.WriteLine(
+                $"\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nGeneration {i + 1}\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
             stopwatch.Start();
-            List<Range> thisRange = entriesPerGeneration == ranges.Count ? ranges : GetRangeForThisGeneration(entriesPerGeneration, ranges, i);
-            
+            List<Range> thisRange = entriesPerGeneration == ranges.Count
+                ? ranges
+                : GetRangeForThisGeneration(entriesPerGeneration, ranges, i);
+
             layouts.AsParallel().ForAll(layout => layout.Evaluate(thisRange));
             //var myLayouts = layouts;
             //Parallel.ForEach(customPartitioner, (indexRange, _) =>
@@ -256,7 +257,7 @@ public static partial class KeyboardLayoutTrainer
             var maxRange = ((i + 1) * entriesPerGeneration1) % list.Count;
             if (maxRange < minRange)
             {
-                minRange = 0; 
+                minRange = 0;
                 maxRange = entriesPerGeneration1;
             }
 
@@ -264,6 +265,7 @@ public static partial class KeyboardLayoutTrainer
             return thisRange;
         }
     }
+
     static Stopwatch _sortStopwatch = new();
     static readonly List<ReproductionGroup> ReproductionGroups = new();
     static double _previousDelta = 0;
@@ -350,7 +352,7 @@ public static partial class KeyboardLayoutTrainer
 
         var random = parent.Random;
         float multiplicationFactor = 1f;
-        
+
         foreach (var child in childrenToOverwrite)
         {
             child.OverwriteTraits(parentKeys);
@@ -358,10 +360,11 @@ public static partial class KeyboardLayoutTrainer
             if (UseRandomMutation)
             {
                 multiplicationFactor = random.NextSingle();
-                if(SqrtRandomMutation)
-                    multiplicationFactor = MathF.Sqrt(multiplicationFactor);
+                
+                if(MathF.Abs(MutationExponent - 1f) > 0.0001f)
+                    multiplicationFactor = MathF.Pow(multiplicationFactor, MutationExponent);
             }
-            
+
             float mutationFactor = MutationFactor * multiplicationFactor;
             child.Mutate(mutationFactor);
         }
@@ -382,8 +385,8 @@ public static partial class KeyboardLayoutTrainer
 
                 // Initialize a new dictionary to store swipe preferences based on position.
                 var positionBasedSwipePreferences = new Dictionary<SwipeDirection, float>();
-                
-                for(int i = 0; i < swipeDirectionPreferences.Length; i++)
+
+                for (int i = 0; i < swipeDirectionPreferences.Length; i++)
                     positionBasedSwipePreferences[(SwipeDirection)i] = swipeDirectionPreferences[i];
 
                 positionBasedSwipePreferences[SwipeDirection.Center] *= (1 + KeysTowardsCenterWeight);
@@ -440,7 +443,7 @@ public static partial class KeyboardLayoutTrainer
                 var preferenceArray = new float[swipeDirectionPreferences.Length];
                 for (int i = 0; i < preferenceArray.Length; i++)
                     preferenceArray[i] = positionBasedSwipePreferences[(SwipeDirection)i];
-                
+
                 keySpecificSwipeDirections.Set(new(x, y), preferenceArray);
             }
         }

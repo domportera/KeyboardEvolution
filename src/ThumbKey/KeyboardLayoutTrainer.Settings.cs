@@ -21,7 +21,7 @@ public static partial class KeyboardLayoutTrainer
         //     var substring = text.Substring(range.Start.Value, range.End.Value - range.Start.Value);
         //     Console.WriteLine(substring);
         // }
-        
+
         Key[,] preset = LayoutPresets.Presets[PresetType.ThumbKeyEngV4NoSymbols];
         StartTraining(text, ranges,
             count: TotalCount,
@@ -53,9 +53,10 @@ public static partial class KeyboardLayoutTrainer
     const bool UseRandomMutation = true;
 
     /// <summary>
-    /// If true, the mutation factor be MutationFactor * sqrt(Random.Range(0, 1)) to lean towards your specified mutation factor
+    /// If <see cref="UseRandomMutation"/> is true, MutationFactor * Math.Pow(random01, MutationExponent)
+    /// to modify the distribution of mutation factors over a population
     /// </summary>
-    const bool SqrtRandomMutation = false;
+    const float MutationExponent = 2f;
 
 
     /// <summary>
@@ -102,9 +103,11 @@ public static partial class KeyboardLayoutTrainer
         public readonly char Replacement = Replacement;
         public readonly int Count = Original.Length;
     }
-        
+
     /// <summary>
-    /// The preference of swiping towards the center of the keyboard, used in generating positional preferences
+    /// The preference of swiping towards the center of the keyboard, used in generating positional preferences and calculating
+    /// fitness relating to swipeDirectionPreference - rather than simply using the simple swipe direction, the fitness and mutation
+    /// functions will prefer swiping towards the center of the keyboard
     /// </summary>
     const float KeysTowardsCenterWeight = 0.1f; //prefer swiping towards the center of the keyboard
 

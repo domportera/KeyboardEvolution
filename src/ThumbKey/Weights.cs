@@ -2,6 +2,9 @@ using System.Numerics;
 
 namespace ThumbKey;
 
+/// <summary>
+/// Contains the amount of impact each factor has on the fitness score of a layout
+/// </summary>
 public record Weights
 {
     /// <summary>
@@ -19,6 +22,15 @@ public record Weights
 
     readonly float[] _weights;
 
+    /// <summary>
+    /// Constructor
+    /// </summary>
+    /// <param name="distance">Prefer smaller distance between keypresses made by the same thumb</param>
+    /// <param name="trajectory">Prefer swiping in the same direction as that thumb's next key</param>
+    /// <param name="handAlternation">Prefer alternating between hands</param>
+    /// <param name="handCollisionAvoidance">For layouts with a center column, there is a penalty for alternating hands on the same key</param>
+    /// <param name="positionalPreference">Weight of the hard-coded positional preference dictionary in settings file</param>
+    /// <param name="swipeDirectionPreference">Weight of the hard-coded swipe types defined in settings file (cardinal, diagonal, center)</param>
     public Weights(float distance, float trajectory, float handAlternation, float handCollisionAvoidance, float positionalPreference, float swipeDirectionPreference)
     {
         _weights = new float[Vector<float>.Count];
@@ -34,6 +46,13 @@ public record Weights
     }
 
     
+    /// <summary>
+    /// Returns a fitness score from 0-1 based on the given results, though the actual score
+    /// is likely to never quite reach 1 without a layout with duplicate keys
+    /// </summary>
+    /// <param name="results01">A SIMD-accessed <see cref="Vector"/> array populated using the indexes
+    /// defined in this type</param>
+    /// <returns></returns>
     public float CalculateScore(float[] results01)
     {
         // the dot product of a vector with one is the sum of its elements
