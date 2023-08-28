@@ -5,7 +5,7 @@ namespace ThumbKey;
 
 public static partial class KeyboardLayoutTrainer
 {
-    const int ParentCount = 1;
+    const int ParentCount = 20;
     const int ChildrenPerParent = 200;
     const int TotalCount = ParentCount + ParentCount * ChildrenPerParent;
 
@@ -26,7 +26,7 @@ public static partial class KeyboardLayoutTrainer
         StartTraining(text, ranges,
             count: TotalCount,
             generationCount: 100_000,
-            entriesPerGeneration: ranges.Count / 12,
+            entriesPerGeneration: 2000,
             seed: (int)DateTime.UtcNow.TimeOfDay.TotalSeconds,
             startingLayout: preset,
             dimensions: preset.GetDimensions());
