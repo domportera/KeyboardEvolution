@@ -79,12 +79,12 @@ public static partial class KeyboardLayoutTrainer
     /// The main weights used in the fitness function
     /// </summary>
     static readonly Weights FitnessWeights = new(
-        distance: 0.5f,
-        trajectory: 0.5f,
-        handAlternation: 1.5f,
-        handCollisionAvoidance: 0.2f,
-        positionalPreference: 0.0f,
-        swipeDirectionPreference: 0.3f
+        distance: 0.3f, // prefer smaller distance between keypresses made by the same thumb
+        trajectory: 0.5f, // prefer swiping in the same direction as that thumb's next key
+        handAlternation: 1.5f, // prefer alternating between hands
+        handCollisionAvoidance: 0.2f, // for layouts with a center column, there is a penalty for alternating hands on the same key
+        positionalPreference: 0.0f, // weight of the hard-coded positional preference dictionary below
+        swipeDirectionPreference: 0.4f //weight of the hard-coded swipe types defined below (cardinal, diagonal, center)
     );
 
     public const float CardinalPreference = 0.4f;

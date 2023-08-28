@@ -22,7 +22,9 @@ var ranges = RedditDataReader.GetAllStringsOfTag(text, tag, minTextLength: 3,
     "^guidelines",
     "Reddit",
     "upvote", 
-    "^^^"
+    "^^^",
+    "bot",
+    "automated"
 });
 
 Debug.Assert(ranges != null && ranges.Count > 0);
