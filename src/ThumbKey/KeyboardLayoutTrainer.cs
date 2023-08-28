@@ -6,17 +6,24 @@ using ThumbKey.Visualization;
 
 namespace ThumbKey;
 
-public static partial class KeyboardLayoutTrainer
+public static class KeyboardLayoutTrainer
 {
     // todo: all punctuation in alphabet?
 
-    static void StartTraining(string inputText, List<Range> ranges, int count, int generationCount,
-        int entriesPerGeneration,
-        int seed, Key[,]? startingLayout, Array2DCoords dimensions)
+    public static void StartTraining(string inputText, List<Range> ranges, TrainerSettings settings)
     {
-        if (startingLayout != null)
-            dimensions = new Array2DCoords(columnX: startingLayout.GetLength(1),
-                rowY: startingLayout.GetLength(0));
+        ApplySettings(settings);
+        int seed = settings.Seed;
+        int entriesPerGeneration = settings.EntriesPerGeneration;
+        int generationCount = settings.GenerationCount;
+        int count = settings.TotalCount;
+        
+        var startingLayout = LayoutPresets.Presets[settings.PresetType];
+        if (seed == -1)
+            seed = (int)(DateTime.UtcNow.TimeOfDay.TotalSeconds);
+
+        var dimensions = new Array2DCoords(columnX: startingLayout.GetLength(1),
+            rowY: startingLayout.GetLength(0));
 
         float[,] positionPreferences = PositionPreferences[dimensions];
 
@@ -66,7 +73,7 @@ public static partial class KeyboardLayoutTrainer
             {
                 layouts[i] = new KeyboardLayout(dimensions, charSet, seed + i, UseStandardSpaceBar,
                     positionPreferences, in FitnessWeights, keySpecificSwipeDirectionPreferences,
-                    swipeDirectionPreferences,
+                    swipeDirectionPreferences, 
                     null);
             }
         });
@@ -360,8 +367,8 @@ public static partial class KeyboardLayoutTrainer
             if (UseRandomMutation)
             {
                 multiplicationFactor = random.NextSingle();
-                
-                if(MathF.Abs(MutationExponent - 1f) > 0.0001f)
+
+                if (MathF.Abs(MutationExponent - 1f) > 0.0001f)
                     multiplicationFactor = MathF.Pow(multiplicationFactor, MutationExponent);
             }
 
@@ -389,55 +396,55 @@ public static partial class KeyboardLayoutTrainer
                 for (int i = 0; i < swipeDirectionPreferences.Length; i++)
                     positionBasedSwipePreferences[(SwipeDirection)i] = swipeDirectionPreferences[i];
 
-                positionBasedSwipePreferences[SwipeDirection.Center] *= (1 + KeysTowardsCenterWeight);
+                positionBasedSwipePreferences[SwipeDirection.Center] *= (1 + _keysTowardsCenterWeight);
 
                 if (isLeftEdge && isTopEdge) // Top-left corner
                 {
-                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + KeysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + _keysTowardsCenterWeight);
                 }
                 else if (isRightEdge && isTopEdge) // Top-right corner
                 {
-                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + KeysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + _keysTowardsCenterWeight);
                 }
                 else if (isLeftEdge && isBottomEdge) // Bottom-left corner
                 {
-                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + KeysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + _keysTowardsCenterWeight);
                 }
                 else if (isRightEdge && isBottomEdge) // Bottom-right corner
                 {
-                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + KeysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + _keysTowardsCenterWeight);
                 }
                 else if (isLeftEdge) // Left edge
                 {
-                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + KeysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Right] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + _keysTowardsCenterWeight);
                 }
                 else if (isRightEdge) // Right edge
                 {
-                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + KeysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Left] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + _keysTowardsCenterWeight);
                 }
                 else if (isTopEdge) // Top edge
                 {
-                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + KeysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Down] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownRight] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.DownLeft] *= (1 + _keysTowardsCenterWeight);
                 }
                 else if (isBottomEdge) // Bottom edge
                 {
-                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + KeysTowardsCenterWeight);
-                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + KeysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.Up] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpRight] *= (1 + _keysTowardsCenterWeight);
+                    positionBasedSwipePreferences[SwipeDirection.UpLeft] *= (1 + _keysTowardsCenterWeight);
                 }
 
                 var preferenceArray = new float[swipeDirectionPreferences.Length];
@@ -449,5 +456,44 @@ public static partial class KeyboardLayoutTrainer
         }
 
         return keySpecificSwipeDirections;
+    }
+
+    static Weights FitnessWeights;
+    static float _keysTowardsCenterWeight = 0.1f; //prefer swiping towards the center of the keyboard
+
+    public static float CardinalPreference = 0.4f; //weight of the hard-coded swipe types defined below (cardinal, diagonal, center)
+
+    public static float DiagonalPreference = 0f;
+    public static float CenterPreference = 1f;
+    static bool UseStandardSpaceBar = true;
+    static bool UseRandomMutation = true;
+    static float MutationFactor = 0.1f;
+    static float MutationExponent = 1f;
+    static float ReproductionRatio = 0.1f;
+    static string CharacterSetString = "abcdefghijklmnopqrstuvwxyz'";
+    public static bool AllowCardinalDiagonalSwaps = true;
+    public static bool UseKeySpecificSwipeDirectionPreferences = true;
+    public static bool RedistributeKeyCharactersBasedOnFrequency = false;
+    public static Dictionary<Array2DCoords, float[,]> PositionPreferences;
+    public static CharacterReplacement[] CharacterSubstitutions;
+
+    static void ApplySettings(TrainerSettings settings)
+    {
+        FitnessWeights = new(settings.FitnessWeights);
+        _keysTowardsCenterWeight = settings.KeysTowardsCenterWeight;
+        CardinalPreference = settings.CardinalPreference;
+        DiagonalPreference = settings.DiagonalPreference;
+        CenterPreference = settings.CenterPreference;
+        UseStandardSpaceBar = settings.UseStandardSpaceBar;
+        UseRandomMutation = settings.UseRandomMutation;
+        MutationFactor = settings.MutationFactor;
+        MutationExponent = settings.MutationExponent;
+        ReproductionRatio = settings.ReproductionRatio;
+        UseKeySpecificSwipeDirectionPreferences = settings.UseKeySpecificSwipeDirectionPreferences;
+        RedistributeKeyCharactersBasedOnFrequency = settings.RedistributeKeyCharactersBasedOnFrequency;
+        CharacterSetString = settings.CharacterSetString;
+        AllowCardinalDiagonalSwaps = settings.AllowCardinalDiagonalSwaps;
+        CharacterSubstitutions = settings.CharacterSubsitutions;
+        PositionPreferences = settings.PositionPreferences;
     }
 }

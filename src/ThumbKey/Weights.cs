@@ -31,7 +31,8 @@ public record Weights
     /// <param name="handCollisionAvoidance">For layouts with a center column, there is a penalty for alternating hands on the same key</param>
     /// <param name="positionalPreference">Weight of the hard-coded positional preference dictionary in settings file</param>
     /// <param name="swipeDirectionPreference">Weight of the hard-coded swipe types defined in settings file (cardinal, diagonal, center)</param>
-    public Weights(float distance, float trajectory, float handAlternation, float handCollisionAvoidance, float positionalPreference, float swipeDirectionPreference)
+    public Weights(float distance, float trajectory, float handAlternation, float handCollisionAvoidance,
+        float positionalPreference, float swipeDirectionPreference)
     {
         _weights = new float[Vector<float>.Count];
         _weights[DistanceIndex] = distance;
@@ -40,12 +41,21 @@ public record Weights
         _weights[HandCollisionAvoidanceIndex] = handCollisionAvoidance;
         _weights[PositionalPreferenceIndex] = positionalPreference;
         _weights[SwipeDirectionPreferenceIndex] = swipeDirectionPreference;
-        
+
         var totalWeight = Vector.Dot(new(_weights), Vector<float>.One);
-        _totalWeightDivider = 1f/totalWeight;
+        _totalWeightDivider = 1f / totalWeight;
     }
 
-    
+    public Weights(SerializableWeights weights) : this(
+        distance: weights.Distance,
+        trajectory: weights.Trajectory,
+        handAlternation: weights.HandAlternation,
+        handCollisionAvoidance: weights.HandCollisionAvoidance,
+        positionalPreference: weights.PositionalPreference,
+        swipeDirectionPreference: weights.SwipeDirectionPreference)
+    {
+    }
+
     /// <summary>
     /// Returns a fitness score from 0-1 based on the given results, though the actual score
     /// is likely to never quite reach 1 without a layout with duplicate keys
@@ -57,7 +67,19 @@ public record Weights
     {
         // the dot product of a vector with one is the sum of its elements
         return Vector.Dot(
-            left: Vector.Multiply(new Vector<float>(results01), new Vector<float>(_weights)), 
+            left: Vector.Multiply(new Vector<float>(results01), new Vector<float>(_weights)),
             right: Vector<float>.One) * _totalWeightDivider;
     }
+}
+
+[Serializable]
+public record SerializableWeights(float Distance, float Trajectory, float HandAlternation, float HandCollisionAvoidance,
+    float PositionalPreference, float SwipeDirectionPreference)
+{
+    public readonly float Distance = Distance,
+        Trajectory = Trajectory,
+        HandAlternation = HandAlternation,
+        HandCollisionAvoidance = HandCollisionAvoidance,
+        PositionalPreference = PositionalPreference,
+        SwipeDirectionPreference = SwipeDirectionPreference;
 }

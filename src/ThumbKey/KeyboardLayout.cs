@@ -50,8 +50,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
     static int _seedIterator = 0;
 
     // Coordinates are determined with (X = 0, Y = 0) being top-left
-    public KeyboardLayout(
-        Array2DCoords dimensions,
+    public KeyboardLayout(Array2DCoords dimensions,
         FrozenSet<char> characterSet,
         int seed,
         bool separateStandardSpaceBar,
@@ -319,7 +318,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void CharacterSubstitution(ref int i, ReadOnlySpan<char> input, ref char rawChar)
         {
-            foreach (var replacement in KeyboardLayoutTrainer.CharacterSubsitutions)
+            foreach (var replacement in KeyboardLayoutTrainer.CharacterSubstitutions)
             {
                 if (i + replacement.Count > input.Length)
                     continue;

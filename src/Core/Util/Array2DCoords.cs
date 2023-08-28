@@ -1,8 +1,8 @@
-using System.Diagnostics;
 using System.Numerics;
 
 namespace Core.Util;
 
+[Serializable]
 public readonly struct Array2DCoords : IEquatable<Array2DCoords>
 {
     public readonly int ColumnX;

@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using ThumbKey;
 
 const string path = @"C:\Users\Dom\Downloads\reddit_casual.json";
@@ -7,31 +9,38 @@ const string output = "./output.log";
 
 Console.SetOut(new TextAndConsoleWriter(output, append: false));
 
-Console.WriteLine($"Reading file at {path}");
-var text = File.ReadAllText(path);
-Console.WriteLine($"Parsing input for tag \"{tag}\"...");
-var ranges = RedditDataReader.GetAllStringsOfTag(text, tag, minTextLength: 3,
-    ignoredPhrases: new[]{
-    "it has been removed for the following",
-    "/rules",
-    "^Please ^refer ^to ^our",
-    "Thank you for your submission",
-    "This submission is a banned",
-    "^If",
-    "^etiquette",
-    "^guidelines",
-    "Reddit",
-    "upvote", 
-    "^^^",
-    "bot",
-    "automated"
-});
+using Process process = Process.GetCurrentProcess();
+process.PriorityClass = ProcessPriorityClass.Idle;
+
+string settingsFilePath = "./settings.json";
+
+TrainerSettings? settings;
+if (!File.Exists(settingsFilePath))
+{
+    settings = new();
+    string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
+    });
+    File.WriteAllText(settingsFilePath, json);
+}
+else
+{
+    string settingsJson = File.ReadAllText(settingsFilePath);
+    settings = JsonSerializer.Deserialize<TrainerSettings>(settingsJson);
+}
+
+if (settings == null)
+    throw new Exception($"Settings deserialized to null - check {Path.GetFullPath(settingsFilePath)}");
+
+Console.WriteLine($"Reading file at {settings.JsonPath}");
+var text = File.ReadAllText(settings.JsonPath);
+Console.WriteLine($"Parsing input for tag \"{settings.JsonTag}\"...");
+var ranges =
+    RedditDataReader.GetAllStringsOfTag(text, settings.JsonTag, settings.MinCommentLength, settings.IgnoredPhrases);
 
 Debug.Assert(ranges != null && ranges.Count > 0);
 
 
-KeyboardLayoutTrainer.Start(text, ranges);
-
-
-    
-    
+KeyboardLayoutTrainer.StartTraining(text, ranges, settings);
