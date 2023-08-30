@@ -12,11 +12,37 @@ public static class KeyboardLayoutTrainer
 
     public static void StartTraining(char[] inputText, List<Range> ranges, TrainerSettings settings)
     {
+        Console.WriteLine($"Starting training with {ranges.Count} entries");
         ApplySettings(settings);
         int seed = settings.Seed;
         int entriesPerGeneration = settings.EntriesPerGeneration;
         int generationCount = settings.GenerationCount;
         int count = settings.TotalCount;
+        
+        // write settings above to console
+        string countSettingsLog = $"Total count: {count}\n" +
+                                  $"Parent count: {settings.ParentCount}\n" +
+                                  $"Children per parent: {settings.ChildrenPerParent}\n" +
+                                  $"Entries per generation: {entriesPerGeneration}\n" +
+                                  $"Generation count: {generationCount}\n" +
+                                  $"Seed: {seed}\n" +
+                                  $"Preset type: {settings.PresetType}\n" +
+                                  $"Character set: {CharacterSetString}\n" +
+                                  $"Use standard spacebar: {UseStandardSpaceBar}\n" +
+                                  $"Use random mutation: {UseRandomMutation}\n" +
+                                  $"Mutation factor: {MutationFactor}\n" +
+                                  $"Mutation exponent: {MutationExponent}\n" +
+                                  $"Reproduction ratio: {ReproductionRatio}\n" +
+                                  $"Use key-specific swipe direction preferences: {UseKeySpecificSwipeDirectionPreferences}\n" +
+                                  $"Redistribute key characters based on frequency: {RedistributeKeyCharactersBasedOnFrequency}\n" +
+                                  $"Allow cardinal-diagonal swaps: {AllowCardinalDiagonalSwaps}\n" +
+                                  $"Fitness weights: {FitnessWeights}\n" +
+                                  $"Keys towards center weight: {_keysTowardsCenterWeight}\n" +
+                                  $"Cardinal preference: {CardinalPreference}\n" +
+                                  $"Diagonal preference: {DiagonalPreference}\n" +
+                                  $"Center preference: {CenterPreference}\n";
+        
+        Console.WriteLine(countSettingsLog);
 
         var startingLayout = LayoutPresets.Presets[settings.PresetType];
         if (seed == -1)
@@ -65,7 +91,7 @@ public static class KeyboardLayoutTrainer
         stopwatch.Start();
 
         Console.WriteLine("Generating layouts");
-        int partitionCount = 16;
+        int partitionCount = Environment.ProcessorCount;
         var customPartitioner = Partitioner.Create(0, count, count / partitionCount);
         Parallel.ForEach(customPartitioner, tuple =>
         {
@@ -203,7 +229,7 @@ public static class KeyboardLayoutTrainer
             stopwatch.Stop();
             Console.WriteLine(
                 $"Took {stopwatch.ElapsedMilliseconds}ms to process {entriesPerGeneration} entries for {layouts.Length} layouts\n" +
-                $"{stopwatch.ElapsedMilliseconds / (double)layouts.Length}ms per layout for {entriesPerGeneration * layouts.Length} calculations total\n");
+                $"{stopwatch.ElapsedMilliseconds / (double)layouts.Length}ms per layout for {(long)entriesPerGeneration * layouts.Length} calculations total\n");
             stopwatch.Reset();
 
             HandleResults();

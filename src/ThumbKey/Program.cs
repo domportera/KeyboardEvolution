@@ -28,7 +28,13 @@ if (!File.Exists(settingsFilePath))
 else
 {
     string settingsJson = File.ReadAllText(settingsFilePath);
-    settings = JsonSerializer.Deserialize<TrainerSettings>(settingsJson);
+    Console.WriteLine($"Loaded settings from {Path.GetFullPath(settingsFilePath)}:\n{settingsJson}");
+    settings = JsonSerializer.Deserialize<TrainerSettings>(settingsJson, new JsonSerializerOptions
+    {
+        Converters = { new JsonStringEnumConverter() },
+        IncludeFields = true,
+        IgnoreReadOnlyProperties = false,
+    });
 }
 
 if (settings == null)

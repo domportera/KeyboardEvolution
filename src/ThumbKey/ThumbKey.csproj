@@ -5,7 +5,7 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <NativeAOT>true</NativeAOT>
+        <NativeAOT>false</NativeAOT>
         <LangVersion>latest</LangVersion>
     </PropertyGroup>
 

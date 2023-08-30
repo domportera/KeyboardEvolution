@@ -3,10 +3,10 @@ using System.Numerics;
 namespace Core.Util;
 
 [Serializable]
-public readonly struct Array2DCoords : IEquatable<Array2DCoords>
+public struct Array2DCoords : IEquatable<Array2DCoords>
 {
-    public readonly int ColumnX;
-    public readonly int RowY;
+    public int ColumnX;
+    public int RowY;
 
     public Array2DCoords(int columnX, int rowY)
     {
