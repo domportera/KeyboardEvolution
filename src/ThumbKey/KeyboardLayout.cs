@@ -7,7 +7,7 @@ using Core.Util;
 
 namespace ThumbKey;
 
-public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
+public class KeyboardLayout : IEvolvable<char[], Key[,]>
 {
     public Key[,] Traits { get; }
     Array2DCoords _dimensions;
@@ -247,7 +247,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         return dict.ToFrozenDictionary();
     }
 
-    TextRange? _currentStimulus;
+    char[] _currentStimulus;
 
     public void Evaluate(List<Range> ranges)
     {
@@ -256,7 +256,7 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
         var maxDistancePossibleInv = 1f / _maxDistancePossible;
         var maxDistancePossibleStandardSpacebarInv = 1f / _maxDistancePossibleStandardSpacebar;
 
-        string text = _currentStimulus!.Text;
+        var text = _currentStimulus;
         foreach (var range in ranges)
         {
             ReadOnlySpan<char> input = text.AsSpan(range);
@@ -264,7 +264,6 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
             for (int i = 0; i < input.Length; i++)
             {
                 var rawChar = input[i];
-                CharacterSubstitution(ref i, input, ref rawChar);
                 
                 if (_separateStandardSpaceBar && rawChar == ' ')
                 {
@@ -315,27 +314,9 @@ public class KeyboardLayout : IEvolvable<TextRange, Key[,]>
 
         Fitness = fitness / charactersTestedCount;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void CharacterSubstitution(ref int i, ReadOnlySpan<char> input, ref char rawChar)
-        {
-            foreach (var replacement in KeyboardLayoutTrainer.CharacterSubstitutions)
-            {
-                if (i + replacement.Count > input.Length)
-                    continue;
-
-                if (rawChar == replacement.Original[0])
-                {
-                    var span = input.Slice(i, replacement.Count);
-                    if (span.SequenceEqual(replacement.Original.AsSpan())) ;
-                    rawChar = replacement.Replacement;
-                    i += replacement.Count - 1; // -1 to account for the i++ in the for loop
-                    break;
-                }
-            }
-        }
     }
 
-    public void SetStimulus(TextRange rangeInfo) => _currentStimulus = rangeInfo;
+    public void SetStimulus(char[] rangeInfo) => _currentStimulus = rangeInfo;
 
     public void OverwriteTraits(Key[,] newKeys)
     {

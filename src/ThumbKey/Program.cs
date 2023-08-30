@@ -3,8 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ThumbKey;
 
-const string path = @"C:\Users\Dom\Downloads\reddit_casual.json";
-const string tag = "text";
 const string output = "./output.log";
 
 Console.SetOut(new TextAndConsoleWriter(output, append: false));
@@ -21,7 +19,9 @@ if (!File.Exists(settingsFilePath))
     string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
     {
         WriteIndented = true,
-        Converters = { new JsonStringEnumConverter() }
+        Converters = { new JsonStringEnumConverter() },
+        IncludeFields = true,
+        IgnoreReadOnlyProperties = true,
     });
     File.WriteAllText(settingsFilePath, json);
 }
@@ -35,12 +35,14 @@ if (settings == null)
     throw new Exception($"Settings deserialized to null - check {Path.GetFullPath(settingsFilePath)}");
 
 Console.WriteLine($"Reading file at {settings.JsonPath}");
-var text = File.ReadAllText(settings.JsonPath);
+var text = File.ReadAllText(settings.JsonPath).ToCharArray();
 Console.WriteLine($"Parsing input for tag \"{settings.JsonTag}\"...");
-var ranges =
-    RedditDataReader.GetAllStringsOfTag(text, settings.JsonTag, settings.MinCommentLength, settings.IgnoredPhrases);
 
-Debug.Assert(ranges != null && ranges.Count > 0);
+GC.Collect();
+var ranges = RedditDataReader.GetAllStringsOfTag(text, settings.JsonTag, settings.MinCommentLength,
+    settings.CharacterSubsitutions, settings.IgnoredPhrases);
 
+if(ranges.Count == 0)
+    throw new Exception("No comments found");
 
 KeyboardLayoutTrainer.StartTraining(text, ranges, settings);

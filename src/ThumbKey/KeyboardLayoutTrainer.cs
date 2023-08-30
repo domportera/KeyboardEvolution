@@ -10,14 +10,14 @@ public static class KeyboardLayoutTrainer
 {
     // todo: all punctuation in alphabet?
 
-    public static void StartTraining(string inputText, List<Range> ranges, TrainerSettings settings)
+    public static void StartTraining(char[] inputText, List<Range> ranges, TrainerSettings settings)
     {
         ApplySettings(settings);
         int seed = settings.Seed;
         int entriesPerGeneration = settings.EntriesPerGeneration;
         int generationCount = settings.GenerationCount;
         int count = settings.TotalCount;
-        
+
         var startingLayout = LayoutPresets.Presets[settings.PresetType];
         if (seed == -1)
             seed = (int)(DateTime.UtcNow.TimeOfDay.TotalSeconds);
@@ -73,7 +73,7 @@ public static class KeyboardLayoutTrainer
             {
                 layouts[i] = new KeyboardLayout(dimensions, charSet, seed + i, UseStandardSpaceBar,
                     positionPreferences, in FitnessWeights, keySpecificSwipeDirectionPreferences,
-                    swipeDirectionPreferences, 
+                    swipeDirectionPreferences,
                     null);
             }
         });
@@ -158,7 +158,7 @@ public static class KeyboardLayoutTrainer
         }
     }
 
-    static void EvolutionLoop(int generationCount, int entriesPerGeneration, string input, List<Range> ranges,
+    static void EvolutionLoop(int generationCount, int entriesPerGeneration, char[] input, List<Range> ranges,
         KeyboardLayout[] layouts, KeyboardLayout controlLayout)
     {
         var visualizers =
@@ -169,12 +169,11 @@ public static class KeyboardLayoutTrainer
 
         Stopwatch stopwatch = new();
 
-        var inputInfo = new TextRange(input, default);
 
         foreach (var layout in layouts)
-            layout.SetStimulus(inputInfo);
+            layout.SetStimulus(input);
 
-        controlLayout.SetStimulus(inputInfo);
+        controlLayout.SetStimulus(input);
 
         Console.WriteLine($"CONTROL");
         controlLayout.Evaluate(ranges);
@@ -190,8 +189,6 @@ public static class KeyboardLayoutTrainer
         if (partitionSize == 0)
             throw new Exception($"Layout quantity should be considerably higher than processor count {processorCount}");
 
-        var customPartitioner = Partitioner.Create(0, layouts.Length, partitionSize);
-
         for (int i = 0; i < generationCount; i++)
         {
             Console.WriteLine(
@@ -202,14 +199,6 @@ public static class KeyboardLayoutTrainer
                 : GetRangeForThisGeneration(entriesPerGeneration, ranges, i);
 
             layouts.AsParallel().ForAll(layout => layout.Evaluate(thisRange));
-            //var myLayouts = layouts;
-            //Parallel.ForEach(customPartitioner, (indexRange, _) =>
-            //{
-            //    int min = indexRange.Item1;
-            //    int max = indexRange.Item2;
-            //    for(int index = min; index < max; index++)
-            //        myLayouts[index].Evaluate(thisRange);
-            //});
 
             stopwatch.Stop();
             Console.WriteLine(
@@ -461,7 +450,8 @@ public static class KeyboardLayoutTrainer
     static Weights FitnessWeights;
     static float _keysTowardsCenterWeight = 0.1f; //prefer swiping towards the center of the keyboard
 
-    public static float CardinalPreference = 0.4f; //weight of the hard-coded swipe types defined below (cardinal, diagonal, center)
+    public static float
+        CardinalPreference = 0.4f; //weight of the hard-coded swipe types defined below (cardinal, diagonal, center)
 
     public static float DiagonalPreference = 0f;
     public static float CenterPreference = 1f;
@@ -475,7 +465,6 @@ public static class KeyboardLayoutTrainer
     public static bool UseKeySpecificSwipeDirectionPreferences = true;
     public static bool RedistributeKeyCharactersBasedOnFrequency = false;
     public static Dictionary<Array2DCoords, float[,]> PositionPreferences;
-    public static CharacterReplacement[] CharacterSubstitutions;
 
     static void ApplySettings(TrainerSettings settings)
     {
@@ -493,7 +482,6 @@ public static class KeyboardLayoutTrainer
         RedistributeKeyCharactersBasedOnFrequency = settings.RedistributeKeyCharactersBasedOnFrequency;
         CharacterSetString = settings.CharacterSetString;
         AllowCardinalDiagonalSwaps = settings.AllowCardinalDiagonalSwaps;
-        CharacterSubstitutions = settings.CharacterSubsitutions;
-        PositionPreferences = settings.PositionPreferences;
+        PositionPreferences = settings.GetPositionPreferences();
     }
 }

@@ -12,10 +12,13 @@ public static class RedditDataReader
     /// <param name="text"></param>
     /// <param name="tag"></param>
     /// <param name="minTextLength"></param>
+    /// <param name="characterSubstitutions"></param>
     /// <param name="ignoredPhrases"></param>
     /// <returns></returns>
     /// <exception cref="NotImplementedException"></exception>
-    public static List<Range> GetAllStringsOfTag(string text, string tag, int minTextLength, params string[]? ignoredPhrases)
+    public static List<Range> GetAllStringsOfTag(char[] text, string tag, int minTextLength,
+        CharacterReplacement[]? characterSubstitutions,
+        params string[]? ignoredPhrases)
     {
         Console.WriteLine("Parsing body text...");
 
@@ -35,6 +38,9 @@ public static class RedditDataReader
             int endIndex = range.Item2;
             int startIndex = GetIndexAfterTag(input, tagSpan, range.Item1);
 
+            // replace characters with their substitutions
+            ReplaceCharacters(characterSubstitutions, startIndex, endIndex, input);
+
             while (startIndex > 0)
             {
                 if (startIndex > endIndex)
@@ -47,13 +53,13 @@ public static class RedditDataReader
                 if (openQuotesIndex < 0)
                     return;
 
-                 // increment to exclude opening quotation mark
+                // increment to exclude opening quotation mark
                 startIndex += openQuotesIndex + 1;
                 remainingText = input[startIndex..endIndex];
 
                 int length = 0;
                 int searchIndex = 0;
-                while(!gotEnd)
+                while (!gotEnd)
                 {
                     var searchSpan = remainingText[searchIndex..];
                     length += searchSpan.IndexOf('\"');
@@ -70,7 +76,7 @@ public static class RedditDataReader
                     var rangeToAdd = new Range(startIndex, rangeEnd);
                     var currentEntryLowercase = input[rangeToAdd].ToString().ToLower();
                     var shouldUse = true;
-                    foreach(var phrase in ignoredPhrases)
+                    foreach (var phrase in ignoredPhrases)
                     {
                         if (currentEntryLowercase.IndexOf(phrase, StringComparison.Ordinal) != -1)
                         {
@@ -78,8 +84,8 @@ public static class RedditDataReader
                             break;
                         }
                     }
-                    
-                    if(shouldUse)
+
+                    if (shouldUse)
                         rangeBag.Add(rangeToAdd);
                 }
 
@@ -94,6 +100,25 @@ public static class RedditDataReader
         {
             input = input.Slice(startIndex);
             return input.IndexOf(tagSpan) + tagSpan.Length + startIndex + 1;
+        }
+
+        void ReplaceCharacters(CharacterReplacement[]? characterReplacements, int startIndex, int endIndex, Span<char> input)
+        {
+            if (characterReplacements == null || characterReplacements.Length <= 0)
+                return;
+            
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                char originalCharacter = input[i];
+                foreach (CharacterReplacement replacement in characterReplacements)
+                {
+                    if (originalCharacter == replacement.Original)
+                    {
+                        input[i] = replacement.Replacement;
+                        break;
+                    }
+                }
+            }
         }
     }
 }

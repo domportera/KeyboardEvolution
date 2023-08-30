@@ -1,10 +1,9 @@
-using System.Text.Json.Serialization;
 using Core.Util;
 
 namespace ThumbKey;
 
 [Serializable]
-public class TrainerSettings : IJsonOnDeserialized
+public class TrainerSettings
 {
     public int ParentCount = 20;
     public int ChildrenPerParent = 200;
@@ -12,20 +11,11 @@ public class TrainerSettings : IJsonOnDeserialized
     public int EntriesPerGeneration = 2000;
     public int Seed = -1;
 
-    public int TotalCount => _totalCount;
-    public float ReproductionRatio => _reproductionRatio;
-    [NonSerialized] int _totalCount;
-    
     public PresetType PresetType = PresetType.ThumbKeyEngV4NoSymbols;
 
     public string CharacterSetString = "abcdefghijklmnopqrstuvwxyz'";
     public bool UseStandardSpaceBar = true;
 
-    /// <summary>
-    /// The ratio of the population that will be reproduced. I.e., if this is 0.1, the top 10% of the population will
-    /// be copied and mutated to fill the rest of the population.
-    /// </summary>
-    [NonSerialized] float _reproductionRatio;
 
     /// <summary>
     /// The percentage of keys that will be mutated in a given key. I.e., if this is 0.3, 30% of the keys will be
@@ -78,9 +68,13 @@ public class TrainerSettings : IJsonOnDeserialized
     public float DiagonalPreference = 0f;
     public float CenterPreference = 1f;
 
+    /// <summary>
+    /// The character substitutions to be made before training begins
+    /// This exists to correct for the fact that the Reddit data set uses curly apostrophes
+    /// </summary>
     public CharacterReplacement[] CharacterSubsitutions =
     {
-        new(@"\u2019", '\'')
+        new('\u2019', '\''),
     };
 
     /// <summary>
@@ -90,38 +84,46 @@ public class TrainerSettings : IJsonOnDeserialized
     /// </summary>
     public float KeysTowardsCenterWeight = 0.1f; //prefer swiping towards the center of the keyboard
 
-    public Dictionary<Array2DCoords, float[,]> PositionPreferences =
+    /// <summary>
+    /// A serializable representation of hard-coded positional preferences for each key on the keyboard, as in
+    /// where are your thumbs most comfortable pressing?
+    /// Each keyboard layout is represented by a 2D array of floats, where each float represents the preference of that key
+    /// on a scale of 0 to 1. This is a jagged array for the sake of serialization.
+    /// </summary>
+    public PositionPreferencesSerialized[] PositionPreferencesSerialized =
+    {
         new()
         {
+            Dimensions = new(columnX: 3, rowY: 3),
+            PositionPreferences = new float[][]
             {
-                new(columnX: 3, rowY: 3),
-                new[,]
-                {
-                    { 0.4f, 0.0f, 0.4f },
-                    { 1, 0.7f, 1f },
-                    { 1, 1, 1 },
-                }
-            },
-            {
-                new(columnX: 4, rowY: 3),
-                new[,]
-                {
-                    { 0.2f, 0.0f, 0.0f, 0.2f },
-                    { 1, 0.8f, 0.8f, 1 },
-                    { 1, 1, 1, 1 },
-                }
-            },
-            {
-                new(columnX: 4, rowY: 4),
-                new[,]
-                {
-                    { 0.4f, 0.0f, 0.0f, 0.4f },
-                    { 0.9f, 0.7f, 0.7f, 0.9f },
-                    { 1, 1, 1, 1 },
-                    { 1, 1, 1, 1 },
-                }
+                new[] { 0.4f, 0.0f, 0.4f },
+                new[] { 1f, 0.7f, 1f },
+                new[] { 1f, 1f, 1f }
             }
-        };
+        },
+        new()
+        {
+            Dimensions = new(columnX: 4, rowY: 3),
+            PositionPreferences = new[]
+            {
+                new[] { 0.2f, 0.0f, 0.0f, 0.2f },
+                new[] { 1, 0.8f, 0.8f, 1 },
+                new[] { 1f, 1, 1, 1 },
+            }
+        },
+        new()
+        {
+            Dimensions = new(columnX: 4, rowY: 4),
+            PositionPreferences = new[]
+            {
+                new[] { 0.4f, 0.0f, 0.0f, 0.4f },
+                new[] { 0.9f, 0.7f, 0.7f, 0.9f },
+                new[] { 1f, 1, 1, 1 },
+                new[] { 1f, 1, 1, 1 },
+            }
+        }
+    };
 
     public string[] IgnoredPhrases = new[]
     {
@@ -144,9 +146,44 @@ public class TrainerSettings : IJsonOnDeserialized
     public string JsonPath = "./reddit_casual.json";
     public int MinCommentLength = 10;
 
-    public void OnDeserialized()
+    public int TotalCount => ParentCount + ParentCount * ChildrenPerParent;
+
+    /// <summary>
+    /// The ratio of the population that will be reproduced. I.e., if this is 0.1, the top 10% of the population will
+    /// be copied and mutated to fill the rest of the population.
+    /// </summary>
+    public float ReproductionRatio => ParentCount / (float)TotalCount;
+
+    [NonSerialized] Dictionary<Array2DCoords, float[,]>? _positionPreferences;
+
+    public Dictionary<Array2DCoords, float[,]> GetPositionPreferences()
     {
-        _totalCount = ParentCount + ParentCount * ChildrenPerParent;
-        _reproductionRatio = ParentCount / (float)_totalCount;
+        if (_positionPreferences != null)
+            return _positionPreferences;
+
+        _positionPreferences = new Dictionary<Array2DCoords, float[,]>();
+        foreach (var prefs in PositionPreferencesSerialized)
+        {
+            float[][] preferencesJagged = prefs.PositionPreferences;
+            var array2D = new float[preferencesJagged.Length, preferencesJagged[0].Length];
+            for (int y = 0; y < preferencesJagged.Length; y++)
+            {
+                for (int x = 0; x < preferencesJagged[y].Length; x++)
+                {
+                    array2D[y, x] = preferencesJagged[y][x];
+                }
+            }
+
+            _positionPreferences.Add(prefs.Dimensions, array2D);
+        }
+
+        return _positionPreferences;
     }
+}
+
+[Serializable]
+public record PositionPreferencesSerialized
+{
+    public Array2DCoords Dimensions;
+    public float[][] PositionPreferences;
 }
