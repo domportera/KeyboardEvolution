@@ -4,13 +4,14 @@ namespace ThumbKey;
 
 public class TextAndConsoleWriter : TextWriter
 {
-    TextWriter standardOutput;
-    StreamWriter textWriter;
+    readonly TextWriter _standardOutput;
+    readonly StreamWriter _textWriter;
 
     public TextAndConsoleWriter(string path, bool append)
     {
-        standardOutput = Console.Out;
-        Encoding = standardOutput.Encoding;
+        _standardOutput = Console.Out;
+        var encoding = _standardOutput.Encoding;
+        Encoding = encoding;
 
         if (!append && File.Exists(path))
         {
@@ -23,211 +24,211 @@ public class TextAndConsoleWriter : TextWriter
         }
 
         FileStream fileStream = new(path, FileMode.Append);
-        textWriter = new StreamWriter(fileStream, Encoding);
-        textWriter.AutoFlush = false;
+        _textWriter = new StreamWriter(fileStream, encoding);
+        _textWriter.AutoFlush = false;
     }
 
     public override void Write(string value)
     {
-        standardOutput.Write(value);
-        textWriter.Write(value);
-        textWriter.Flush();
+        _standardOutput.Write(value);
+        _textWriter.Write(value);
+        _textWriter.Flush();
     }
 
     public override void WriteLine(string? value)
     {
-        standardOutput.WriteLine(value);
-        textWriter.WriteLine(value);
-        textWriter.Flush();
+        _standardOutput.WriteLine(value);
+        _textWriter.WriteLine(value);
+        _textWriter.Flush();
     }
 
     public override void WriteLine()
     {
-        standardOutput.WriteLine();
-        textWriter.WriteLine();
-        textWriter.Flush();
+        _standardOutput.WriteLine();
+        _textWriter.WriteLine();
+        _textWriter.Flush();
     }
 
     public override void WriteLine(object? value)
     {
-        standardOutput.WriteLine(value);
-        textWriter.WriteLine(value);
+        _standardOutput.WriteLine(value);
+        _textWriter.WriteLine(value);
     }
 
     public override void WriteLine(string format, object? arg0)
     {
-        standardOutput.WriteLine(format, arg0);
-        textWriter.WriteLine(format, arg0);
-        textWriter.Flush();
+        _standardOutput.WriteLine(format, arg0);
+        _textWriter.WriteLine(format, arg0);
+        _textWriter.Flush();
     }
 
     public override void WriteLine(string format, object? arg0, object? arg1)
     {
-        standardOutput.WriteLine(format, arg0, arg1);
-        textWriter.WriteLine(format, arg0, arg1);
-        textWriter.Flush();
+        _standardOutput.WriteLine(format, arg0, arg1);
+        _textWriter.WriteLine(format, arg0, arg1);
+        _textWriter.Flush();
     }
 
     public override void WriteLine(string format, object? arg0, object? arg1, object? arg2)
     {
-        standardOutput.WriteLine(format, arg0, arg1, arg2);
-        textWriter.WriteLine(format, arg0, arg1, arg2);
+        _standardOutput.WriteLine(format, arg0, arg1, arg2);
+        _textWriter.WriteLine(format, arg0, arg1, arg2);
     }
 
     public override void WriteLine(string format, params object?[] arg)
     {
-        standardOutput.WriteLine(format, arg);
-        textWriter.WriteLine(format, arg);
+        _standardOutput.WriteLine(format, arg);
+        _textWriter.WriteLine(format, arg);
     }
 
     public override void Write(char value)
     {
-        standardOutput.Write(value);
-        textWriter.Write(value);
+        _standardOutput.Write(value);
+        _textWriter.Write(value);
     }
 
     public override void Write(bool value)
     {
-        standardOutput.Write(value);
-        textWriter.Write(value);
+        _standardOutput.Write(value);
+        _textWriter.Write(value);
     }
 
     public override void Write(char[] buffer)
     {
-        standardOutput.Write(buffer);
-        textWriter.Write(buffer);
+        _standardOutput.Write(buffer);
+        _textWriter.Write(buffer);
     }
 
     public override void Write(char[] buffer, int index, int count)
     {
-        standardOutput.Write(buffer, index, count);
-        textWriter.Write(buffer, index, count);
+        _standardOutput.Write(buffer, index, count);
+        _textWriter.Write(buffer, index, count);
     }
 
     public override void Write(double value)
     {
-        standardOutput.Write(value);
-        textWriter.Write(value);
+        _standardOutput.Write(value);
+        _textWriter.Write(value);
     }
 
     public override void Write(float value)
     {
-        standardOutput.Write(value);
-        textWriter.Write(value);
+        _standardOutput.Write(value);
+        _textWriter.Write(value);
     }
 
     public override void Write(int value)
     {
-        standardOutput.Write(value);
-        textWriter.Write(value);
+        _standardOutput.Write(value);
+        _textWriter.Write(value);
     }
 
     public override void Write(long value)
     {
-        standardOutput.Write(value);
-        textWriter.Write(value);
+        _standardOutput.Write(value);
+        _textWriter.Write(value);
     }
 
     public override void Write(object? value)
     {
-        standardOutput.Write(value);
-        textWriter.Write(value);
+        _standardOutput.Write(value);
+        _textWriter.Write(value);
     }
 
     public override void Write(string format, object? arg0)
     {
-        standardOutput.Write(format, arg0);
-        textWriter.Write(format, arg0);
+        _standardOutput.Write(format, arg0);
+        _textWriter.Write(format, arg0);
     }
 
     public override void Write(string format, object? arg0, object? arg1)
     {
-        standardOutput.Write(format, arg0, arg1);
-        textWriter.Write(format, arg0, arg1);
+        _standardOutput.Write(format, arg0, arg1);
+        _textWriter.Write(format, arg0, arg1);
     }
 
     public override void Write(string format, object? arg0, object? arg1, object? arg2)
     {
-        standardOutput.Write(format, arg0, arg1, arg2);
-        textWriter.Write(format, arg0, arg1, arg2);
+        _standardOutput.Write(format, arg0, arg1, arg2);
+        _textWriter.Write(format, arg0, arg1, arg2);
     }
 
     public override void Write(string format, params object?[] arg)
     {
-        standardOutput.Write(format, arg);
-        textWriter.Write(format, arg);
+        _standardOutput.Write(format, arg);
+        _textWriter.Write(format, arg);
     }
 
     public override void Write(uint value)
     {
-        standardOutput.Write(value);
-        textWriter.Write(value);
+        _standardOutput.Write(value);
+        _textWriter.Write(value);
     }
 
     public override void Write(ulong value)
     {
-        standardOutput.Write(value);
-        textWriter.Write(value);
+        _standardOutput.Write(value);
+        _textWriter.Write(value);
     }
 
     public override void WriteLine(bool value)
     {
-        standardOutput.WriteLine(value);
-        textWriter.WriteLine(value);
+        _standardOutput.WriteLine(value);
+        _textWriter.WriteLine(value);
     }
 
     public override void WriteLine(char value)
     {
-        standardOutput.WriteLine(value);
-        textWriter.WriteLine(value);
+        _standardOutput.WriteLine(value);
+        _textWriter.WriteLine(value);
     }
 
     public override void WriteLine(char[] buffer)
     {
-        standardOutput.WriteLine(buffer);
-        textWriter.WriteLine(buffer);
+        _standardOutput.WriteLine(buffer);
+        _textWriter.WriteLine(buffer);
     }
 
     public override void WriteLine(char[] buffer, int index, int count)
     {
-        standardOutput.WriteLine(buffer, index, count);
-        textWriter.WriteLine(buffer, index, count);
+        _standardOutput.WriteLine(buffer, index, count);
+        _textWriter.WriteLine(buffer, index, count);
     }
 
     public override void WriteLine(double value)
     {
-        standardOutput.WriteLine(value);
-        textWriter.WriteLine(value);
+        _standardOutput.WriteLine(value);
+        _textWriter.WriteLine(value);
     }
 
     public override void WriteLine(float value)
     {
-        standardOutput.WriteLine(value);
-        textWriter.WriteLine(value);
+        _standardOutput.WriteLine(value);
+        _textWriter.WriteLine(value);
     }
 
     public override void WriteLine(int value)
     {
-        standardOutput.WriteLine(value);
-        textWriter.WriteLine(value);
+        _standardOutput.WriteLine(value);
+        _textWriter.WriteLine(value);
     }
 
     public override void WriteLine(long value)
     {
-        standardOutput.WriteLine(value);
-        textWriter.WriteLine(value);
+        _standardOutput.WriteLine(value);
+        _textWriter.WriteLine(value);
     }
 
     public override void WriteLine(uint value)
     {
-        standardOutput.WriteLine(value);
-        textWriter.WriteLine(value);
+        _standardOutput.WriteLine(value);
+        _textWriter.WriteLine(value);
     }
 
     public override void WriteLine(ulong value)
     {
-        standardOutput.WriteLine(value);
-        textWriter.WriteLine(value);
+        _standardOutput.WriteLine(value);
+        _textWriter.WriteLine(value);
     }
 
     public override Encoding Encoding { get; }
