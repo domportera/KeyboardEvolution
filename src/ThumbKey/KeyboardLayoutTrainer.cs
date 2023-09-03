@@ -279,9 +279,9 @@ public static class KeyboardLayoutTrainer
             var bestFitness = layouts[0].Fitness;
             Console.WriteLine(
                 $"Best fitness:   ({bestFitness:f4}) {(bestFitness > controlFitness ? ">" : "<")} than control  ({controlFitness:f4})\n" +
-                $"Best fitness:   ({bestFitness:f4}) {(bestFitness > previousBestFitness ? ">" : "<")} than previous ({previousAverageFitness:f4})\n" +
-                $"Improvement over control:  {((bestFitness - controlFitness)/controlFitness):f6} %\n" +
-                $"Improvement over previous: {((bestFitness - previousBestFitness)/previousBestFitness):f6} %");
+                $"Best fitness:   ({bestFitness:f4}) {(bestFitness > previousBestFitness ? ">" : "<")} than previous ({previousBestFitness:f4})\n" +
+                $"Improvement over control:  {((bestFitness - controlFitness)/controlFitness * 100):f6} %\n" +
+                $"Improvement over previous: {((bestFitness - previousBestFitness)/previousBestFitness * 100):f6} %");
             
             previousBestFitness = bestFitness;
         }
