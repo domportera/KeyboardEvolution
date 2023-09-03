@@ -43,6 +43,7 @@ public class TrainerSettings
 
     /// <summary>
     /// Governs whether characters within a key are reorganized/optimized after mutation.
+    /// Use if you'd like to prioritize swipe direction preference over trajectory and adjust your fitness weights accordingly.
     /// </summary>
     public bool RedistributeKeyCharactersBasedOnFrequency = false;
 
@@ -51,17 +52,24 @@ public class TrainerSettings
     /// layouts that are 3x3 and smaller, it is recommended to set this to true.
     /// </summary>
     public bool AllowCardinalDiagonalSwaps = true;
+    
+    /// <summary>
+    /// Shows preference for preferring swipes that are in the opposite direction of the next key.
+    /// This could be useful to give fingers a bit more room to "breathe" or turn around on layouts with
+    /// smaller keys.
+    /// </summary>
+    public bool PreferSwipesInOppositeDirectionOfNextKey = false;
 
     /// <summary>
     /// The main weights used in the fitness function
     /// </summary>
     public SerializableWeights FitnessWeights = new(
-        Distance: 0.3f, // prefer smaller distance between keypresses made by the same thumb
+        Distance: 0.0f, // prefer smaller distance between keypresses made by the same thumb
         Trajectory: 0.5f, // prefer swiping in the same direction as that thumb's next key
         HandAlternation: 1.5f, // prefer alternating between hands
         HandCollisionAvoidance: 0.2f, // for layouts with a center column, there is a penalty for alternating hands on the same key
-        PositionalPreference: 0.0f, // weight of the hard-coded positional preference dictionary below
-        SwipeDirectionPreference: 0.4f //weight of the hard-coded swipe types defined below (cardinal, diagonal, center)
+        PositionalPreference: 0.05f, // weight of the hard-coded positional preference dictionary below
+        SwipeDirectionPreference: 0.1f //weight of the hard-coded swipe types defined below (cardinal, diagonal, center)
     );
 
     public float CardinalPreference = 0.4f;

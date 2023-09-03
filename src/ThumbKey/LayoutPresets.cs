@@ -48,7 +48,7 @@ public static class LayoutPresets
                 },
                 {
                     new("\0\0c\0t\0\0\0\0"),
-                    new("\0f\0\0iz\0\0\0\0"),
+                    new("\0f\0\0iz\0\0\0"),
                     new("d\0\0\0e\0\0\0\0")
                 },
             }

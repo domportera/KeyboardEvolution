@@ -215,22 +215,32 @@ public static class KeyboardLayoutTrainer
         if (partitionSize == 0)
             throw new Exception($"Layout quantity should be considerably higher than processor count {processorCount}");
 
+        bool useAllEntriesPerGeneration = entriesPerGeneration == ranges.Count;
         for (int i = 0; i < generationCount; i++)
         {
             Console.WriteLine(
                 $"\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nGeneration {i + 1}\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
             stopwatch.Start();
-            List<Range> thisRange = entriesPerGeneration == ranges.Count
+            
+            List<Range> thisRange = useAllEntriesPerGeneration
                 ? ranges
                 : GetRangeForThisGeneration(entriesPerGeneration, ranges, i);
 
             layouts.AsParallel().ForAll(layout => layout.Evaluate(thisRange));
-
+            
             stopwatch.Stop();
             Console.WriteLine(
                 $"Took {stopwatch.ElapsedMilliseconds}ms to process {entriesPerGeneration} entries for {layouts.Length} layouts\n" +
                 $"{stopwatch.ElapsedMilliseconds / (double)layouts.Length}ms per layout for {(long)entriesPerGeneration * layouts.Length} calculations total\n");
             stopwatch.Reset();
+
+            if (!useAllEntriesPerGeneration)
+            {
+                Console.WriteLine($"Calculating control layout fitness for this generation's entries");
+                controlLayout.ResetFitness();
+                controlLayout.Evaluate(thisRange);
+                controlFitness = controlLayout.Fitness;
+            }
 
             HandleResults();
 
@@ -262,14 +272,17 @@ public static class KeyboardLayoutTrainer
             double averageFitness = layouts.Average(x => x.Fitness);
 
             Console.WriteLine(
-                $"Average fitness ({averageFitness:f5}) {(averageFitness > controlFitness ? ">" : "<")} than control {controlFitness:f3}\n" +
-                $"and {(averageFitness > previousAverageFitness ? ">" : "<")} than previous {previousAverageFitness:f3}\n");
+                $"Average fitness ({averageFitness:f4}) {(averageFitness > controlFitness ? ">" : "<")} than control  ({controlFitness:f4})\n" +
+                $"Average fitness ({averageFitness:f4}) {(averageFitness > previousAverageFitness ? ">" : "<")} than previous ({previousAverageFitness:f4})\n");
             previousAverageFitness = averageFitness;
 
             var bestFitness = layouts[0].Fitness;
             Console.WriteLine(
-                $"Best fitness: {bestFitness:f5} is {(bestFitness > controlFitness ? "greater" : "less")} than {controlFitness:f5} for control layout\n" +
-                $"and is {(bestFitness > previousBestFitness ? "greater" : "less")} than that of previous generation");
+                $"Best fitness:   ({bestFitness:f4}) {(bestFitness > controlFitness ? ">" : "<")} than control  ({controlFitness:f4})\n" +
+                $"Best fitness:   ({bestFitness:f4}) {(bestFitness > previousBestFitness ? ">" : "<")} than previous ({previousAverageFitness:f4})\n" +
+                $"Improvement over control:  {((bestFitness - controlFitness)/controlFitness):f6} %\n" +
+                $"Improvement over previous: {((bestFitness - previousBestFitness)/previousBestFitness):f6} %");
+            
             previousBestFitness = bestFitness;
         }
 
@@ -312,9 +325,9 @@ public static class KeyboardLayoutTrainer
             layoutsSortedDescending[quantityToReproduce..].Average(x => x.Fitness);
         double delta = averageFitnessReproductivePopulation - averageFitnessNonReproductivePopulation;
         Console.WriteLine(
-            $"Average fitness of reproductive population: {averageFitnessReproductivePopulation:f3} vs {averageFitnessNonReproductivePopulation:f3} for non-reproductive");
-        Console.WriteLine($"Reproductive population: {quantityToReproduce} with {childrenPerParent} children each");
-        Console.WriteLine($"Delta: {delta:f3} is {(delta > _previousDelta ? '>' : '<')} {_previousDelta:f3}");
+            $"Average fitness reproductive:     {averageFitnessReproductivePopulation:f4}\n" +
+            $"AVerage fitness non-reproductive: {averageFitnessNonReproductivePopulation:f4}");
+        Console.WriteLine($"Delta: {delta:f4} is {(delta > _previousDelta ? '>' : '<')} {_previousDelta:f4}");
         _previousDelta = delta;
 
         // Generate reproduction groups
@@ -490,6 +503,7 @@ public static class KeyboardLayoutTrainer
     public static bool AllowCardinalDiagonalSwaps = true;
     public static bool UseKeySpecificSwipeDirectionPreferences = true;
     public static bool RedistributeKeyCharactersBasedOnFrequency = false;
+    public static bool PreferSwipesInOppositeDirectionOfNextKey = true;
     public static Dictionary<Array2DCoords, float[,]> PositionPreferences;
 
     static void ApplySettings(TrainerSettings settings)
@@ -509,5 +523,6 @@ public static class KeyboardLayoutTrainer
         CharacterSetString = settings.CharacterSetString;
         AllowCardinalDiagonalSwaps = settings.AllowCardinalDiagonalSwaps;
         PositionPreferences = settings.GetPositionPreferences();
+        PreferSwipesInOppositeDirectionOfNextKey = settings.PreferSwipesInOppositeDirectionOfNextKey;
     }
 }

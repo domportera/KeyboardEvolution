@@ -1,5 +1,6 @@
 namespace ThumbKey;
 
+// used as array indices
 public enum SwipeDirection
 {
     UpLeft = 0,
@@ -11,7 +12,6 @@ public enum SwipeDirection
     DownLeft = 6,
     Down = 7,
     DownRight = 8,
-    None = -1
 }
 
 internal enum Thumb // todo: further abstraction : hand? finger type? what of one-handed users?

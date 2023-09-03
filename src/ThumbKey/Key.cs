@@ -5,12 +5,19 @@ namespace ThumbKey;
 
 public class Key
 {
-    public static readonly int MaxCharacterCount = Enum.GetValues<SwipeDirection>().Length - 1;
+    public static readonly int MaxCharacterCount = 9;
     readonly char[] _characters = new char[MaxCharacterCount];
 
     internal Key(ReadOnlySpan<char> characters) : this()
     {
-        _characters = characters.ToArray();
+        if (characters.Length != MaxCharacterCount)
+            throw new ArgumentException($"Key must have {MaxCharacterCount} characters.");
+                
+        
+        for(int i = 0; i < characters.Length; i++)
+        {
+            _characters[i] = characters[i];
+        }
     }
 
     internal Key(char center, ReadOnlySpan<char> cardinal, ReadOnlySpan<char> diagonal, Random random) : this()

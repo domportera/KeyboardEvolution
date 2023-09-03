@@ -115,7 +115,8 @@ public class KeyboardLayout : IEvolvable<char[], Key[,]>
         _dimensions = Traits.GetDimensions();
     }
 
-    static readonly FrozenDictionary<SwipeDirection, float> SwipeAngles = new Dictionary<SwipeDirection, float>()
+    // deprecated for use of the array for more efficient access
+    static readonly IReadOnlyDictionary<SwipeDirection, float> SwipeAngles = new Dictionary<SwipeDirection, float>()
     {
         { SwipeDirection.Left, (float)Math.PI },
         { SwipeDirection.UpLeft, (float)(3 * Math.PI / 4) },
@@ -125,7 +126,21 @@ public class KeyboardLayout : IEvolvable<char[], Key[,]>
         { SwipeDirection.DownRight, (float)(-Math.PI / 4) },
         { SwipeDirection.Down, (float)(-Math.PI / 2) },
         { SwipeDirection.DownLeft, (float)(-3 * Math.PI / 4) },
+        { SwipeDirection.Center, float.NaN }
     }.ToFrozenDictionary();
+
+    // compliant with the values of SwipeDirection enum
+    static readonly float[] SwipeAnglesArray;
+
+    static KeyboardLayout()
+    {
+        SwipeAnglesArray = new float[SwipeAngles.Count];
+        foreach (var (swipeDirection, angle) in SwipeAngles)
+        {
+            SwipeAnglesArray[(int)swipeDirection] = angle;
+        }
+    }
+
 
 
     Key GetKey(int x, int y)
@@ -264,7 +279,7 @@ public class KeyboardLayout : IEvolvable<char[], Key[,]>
             for (int i = 0; i < input.Length; i++)
             {
                 var rawChar = input[i];
-                
+
                 if (_separateStandardSpaceBar && rawChar == ' ')
                 {
                     // thumbs to spacebar can always alternate
@@ -289,7 +304,7 @@ public class KeyboardLayout : IEvolvable<char[], Key[,]>
 
                 if (!gotInput)
                     continue;
-                
+
                 _characterFrequencies[c]++;
 
                 var thumb = GetWhichThumb(in _previousInputAction, inputPositionInfo.Column, _dimensions);
@@ -313,7 +328,6 @@ public class KeyboardLayout : IEvolvable<char[], Key[,]>
         }
 
         Fitness = fitness / charactersTestedCount;
-
     }
 
     public void SetStimulus(char[] rangeInfo) => _currentStimulus = rangeInfo;
@@ -419,18 +433,29 @@ public class KeyboardLayout : IEvolvable<char[], Key[,]>
             return _fitnessWeights.CalculateScore(_travelScoreValues);
         }
 
-        var keyPos1 = previousInputOfThumb.KeyPosition;
-        var keyPos2 = currentTypedKey.KeyPosition;
-        var a = keyPos1.ColumnX - keyPos2.ColumnX;
-        var b = keyPos1.RowY - keyPos2.RowY;
+        var previousKeyPosition = previousInputOfThumb.KeyPosition;
+        var currentKeyPosition = currentTypedKey.KeyPosition;
+        var a = previousKeyPosition.ColumnX - currentKeyPosition.ColumnX;
+        var b = previousKeyPosition.RowY - currentKeyPosition.RowY;
         float distanceTraveled = MathF.Sqrt((float)(a * a + b * b));
 
+
         _travelScoreValues[Weights.DistanceIndex] = 1f - distanceTraveled * maxDistancePossibleInv;
-        _travelScoreValues[Weights.TrajectoryIndex] = previousInputOfThumb.SwipeDirection == SwipeDirection.Center
-            ? 1
-            : 1 - AngleUtils.NormalizedAngleDifference(
-                AngleUtils.AngleFromVector2(currentTypedKey.KeyPosition - previousInputOfThumb.KeyPosition),
-                SwipeAngles[previousInputOfThumb.SwipeDirection]);
+
+        if (previousInputOfThumb.SwipeDirection == SwipeDirection.Center)
+        {
+            _travelScoreValues[Weights.TrajectoryIndex] = 1;
+        }
+        else
+        {
+            float angleDifference =
+                DifferenceBetweenSwipeAndTravelDirections(previousInputOfThumb, currentKeyPosition);
+            if (KeyboardLayoutTrainer.PreferSwipesInOppositeDirectionOfNextKey)
+                _travelScoreValues[Weights.TrajectoryIndex] = angleDifference;
+            else
+                _travelScoreValues[Weights.TrajectoryIndex] = 1 - angleDifference;
+        }
+
         _travelScoreValues[Weights.HandAlternationIndex] =
             previousInputOfThumb.Thumb != currentTypedKey.Thumb ? 1 : 0;
         _travelScoreValues[Weights.HandCollisionAvoidanceIndex] =
@@ -440,6 +465,21 @@ public class KeyboardLayout : IEvolvable<char[], Key[,]>
         _travelScoreValues[Weights.SwipeDirectionPreferenceIndex] = swipeDirectionPreference01;
 
         return _fitnessWeights.CalculateScore(_travelScoreValues);
+    }
+
+    static float DifferenceBetweenSwipeAndTravelDirections(in InputAction previousInputOfThumb,
+        in Array2DCoords currentKeyPosition)
+    {
+        var deltaPosition = GetPositionDeltaForAngleCalculation(previousInputOfThumb, currentKeyPosition);
+        return DifferenceBetweenSwipeAndTravelDirections(previousInputOfThumb, deltaPosition);
+    }
+
+    static float DifferenceBetweenSwipeAndTravelDirections(in InputAction previousInputOfThumb,
+        in Vector2 deltaPosition)
+    {
+        var travelAngleRadians = AngleUtils.AngleFromVector2(deltaPosition);
+        var previousSwipeAngleRadians = SwipeAnglesArray[(int)previousInputOfThumb.SwipeDirection];
+        return AngleUtils.NormalizedAngleDifference(travelAngleRadians, previousSwipeAngleRadians);
     }
 
 
@@ -454,31 +494,35 @@ public class KeyboardLayout : IEvolvable<char[], Key[,]>
             swipeDirection: SwipeDirection.Center,
             thumb: previousTypedKeyOfThumb.Thumb);
 
-        float trajectoryCorrectness;
         SwipeDirection previousSwipeDirection = previousTypedKeyOfThumb.SwipeDirection;
-        Debug.Assert(previousTypedKeyOfThumb.SwipeDirection != SwipeDirection.None);
+        var deltaPosition = GetPositionDeltaForAngleCalculation(previousTypedKeyOfThumb, spaceBarPosition);
         if (previousSwipeDirection == SwipeDirection.Center)
         {
-            trajectoryCorrectness = 1;
+            _travelScoreValues[Weights.TrajectoryIndex] = 1;
         }
         else
         {
-            Vector2 travel = spaceBarPosition - previousTypedKeyOfThumb.KeyPosition;
-            var travelAngleRadians = AngleUtils.AngleFromVector2(travel); // 0 - 2PI 
-            trajectoryCorrectness =
-                1 - AngleUtils.NormalizedAngleDifference(travelAngleRadians, SwipeAngles[previousSwipeDirection]);
+            float angleDifference = DifferenceBetweenSwipeAndTravelDirections(previousTypedKeyOfThumb, deltaPosition);
+            if (KeyboardLayoutTrainer.PreferSwipesInOppositeDirectionOfNextKey)
+                _travelScoreValues[Weights.TrajectoryIndex] = angleDifference;
+            else
+                _travelScoreValues[Weights.TrajectoryIndex] = 1 - angleDifference;
         }
 
-        float distanceTraveled = Math.Abs(spaceBarPosition.Y - previousTypedKeyOfThumb.KeyPosition.RowY);
+        float distanceTraveled = Math.Abs(deltaPosition.Y);
         Debug.Assert(distanceTraveled >= 0);
 
         _travelScoreValues[Weights.DistanceIndex] = 1 - (distanceTraveled * maxDistancePossibleInverse);
-        _travelScoreValues[Weights.TrajectoryIndex] = trajectoryCorrectness;
-        _travelScoreValues[Weights.HandAlternationIndex] = 1; // spacebar can always use opposite hand
-        _travelScoreValues[Weights.HandCollisionAvoidanceIndex] =
-            1; // spacebar is wide enough to never worry about overlap
-        _travelScoreValues[Weights.PositionalPreferenceIndex] =
-            1f; // spacebar position is relatively standardized, todo: allow non-standard space position? 3x4 layout?
+
+        // spacebar can always use opposite hand
+        _travelScoreValues[Weights.HandAlternationIndex] = 1;
+
+        ; // spacebar is wide enough to never worry about overlap
+        _travelScoreValues[Weights.HandCollisionAvoidanceIndex] = 1;
+
+        // spacebar position is relatively standardized, todo: allow non-standard space position? 3x4 layout?
+        _travelScoreValues[Weights.PositionalPreferenceIndex] = 1f;
+
         _travelScoreValues[Weights.SwipeDirectionPreferenceIndex] =
             _swipeDirectionPreferences[(int)spaceKeyAction.SwipeDirection];
 
@@ -491,6 +535,13 @@ public class KeyboardLayout : IEvolvable<char[], Key[,]>
             var y = _dimensions.RowY; // below other keys
             return new Vector2(x, y);
         }
+    }
+
+    static Vector2 GetPositionDeltaForAngleCalculation(InputAction previousTypedKeyOfThumb, Vector2 currentKeyPosition)
+    {
+        var delta = currentKeyPosition - previousTypedKeyOfThumb.KeyPosition;
+        delta.Y *= -1; //compensate for y-axis being inverted in our coordinate system vs the standard for angles
+        return delta;
     }
 
     static Thumb GetWhichThumb(in InputAction previousTypedKey, int xPosition, in Array2DCoords keyboardDimensions)
